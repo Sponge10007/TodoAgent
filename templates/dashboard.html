@@ -1,0 +1,271 @@
+{% extends "base.html" %}
+
+{% block title %}仪表板 - 生活管家AI Agent{% endblock %}
+{% block page_title %}仪表板{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- 统计卡片 -->
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-primary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            总目标数
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="total-goals">0</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-bullseye fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            今日任务
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="today-tasks">0</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-tasks fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-info shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            完成率
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="completion-rate">0%</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-percentage fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-warning shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            逾期任务
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="overdue-tasks">0</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-exclamation-triangle fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- 目标进度 -->
+    <div class="col-lg-8 mb-4">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">目标进度</h6>
+            </div>
+            <div class="card-body" id="goals-progress">
+                <!-- 目标进度将在这里动态加载 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 今日任务 -->
+    <div class="col-lg-4 mb-4">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">今日任务</h6>
+            </div>
+            <div class="card-body" id="today-tasks-list">
+                <!-- 今日任务将在这里动态加载 -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- 完成趋势图表 -->
+    <div class="col-lg-12">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">任务完成趋势</h6>
+            </div>
+            <div class="card-body">
+                <canvas id="completionChart" width="400" height="100"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 加载仪表板数据
+async function loadDashboardData() {
+    try {
+        // 加载摘要数据
+        const summaryResponse = await fetch('/api/dashboard/summary');
+        const summaryData = await summaryResponse.json();
+        
+        // 更新统计卡片
+        document.getElementById('total-goals').textContent = summaryData.total_goals;
+        document.getElementById('today-tasks').textContent = summaryData.today_tasks;
+        document.getElementById('completion-rate').textContent = summaryData.completion_rate + '%';
+        document.getElementById('overdue-tasks').textContent = summaryData.overdue_tasks;
+        
+        // 加载目标进度
+        const progressResponse = await fetch('/api/dashboard/goals/progress');
+        const progressData = await progressResponse.json();
+        
+        // 渲染目标进度
+        const progressContainer = document.getElementById('goals-progress');
+        progressContainer.innerHTML = '';
+        
+        progressData.forEach(goal => {
+            const goalElement = document.createElement('div');
+            goalElement.className = 'mb-3';
+            goalElement.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <h6 class="mb-0">${goal.title}</h6>
+                    <span class="badge bg-primary">${goal.category}</span>
+                </div>
+                <div class="progress mb-2">
+                    <div class="progress-bar" role="progressbar" style="width: ${goal.progress}%" 
+                         aria-valuenow="${goal.progress}" aria-valuemin="0" aria-valuemax="100">
+                        ${goal.progress.toFixed(1)}%
+                    </div>
+                </div>
+                <small class="text-muted">
+                    ${new Date(goal.start_date).toLocaleDateString()} - 
+                    ${new Date(goal.end_date).toLocaleDateString()}
+                </small>
+            `;
+            progressContainer.appendChild(goalElement);
+        });
+        
+        // 加载今日任务
+        const today = new Date().toISOString().split('T')[0];
+        const tasksResponse = await fetch(`/api/tasks/daily/${today}`);
+        const tasksData = await tasksResponse.json();
+        
+        // 渲染今日任务
+        const tasksContainer = document.getElementById('today-tasks-list');
+        tasksContainer.innerHTML = '';
+        
+        if (tasksData.length === 0) {
+            tasksContainer.innerHTML = '<p class="text-muted">今天没有任务安排</p>';
+        } else {
+            tasksData.forEach(task => {
+                const taskElement = document.createElement('div');
+                taskElement.className = `task-item p-3 mb-2 ${task.status === 'completed' ? 'completed' : ''} ${task.priority === 'high' ? 'high-priority' : ''}`;
+                taskElement.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 class="mb-1">${task.title}</h6>
+                            <p class="text-muted mb-1">${task.description}</p>
+                            <small class="text-muted">预计时长: ${task.estimated_duration}分钟</small>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-${task.status === 'completed' ? 'success' : task.priority === 'high' ? 'danger' : 'secondary'} mb-1">
+                                ${task.status === 'completed' ? '已完成' : task.priority === 'high' ? '高优先级' : '普通'}
+                            </span>
+                            <br>
+                            <button class="btn btn-sm btn-outline-primary" onclick="updateTaskStatus(${task.id}, '${task.status === 'completed' ? 'pending' : 'completed'}')">
+                                ${task.status === 'completed' ? '取消完成' : '标记完成'}
+                            </button>
+                        </div>
+                    </div>
+                `;
+                tasksContainer.appendChild(taskElement);
+            });
+        }
+        
+        // 加载分析数据并绘制图表
+        const analyticsResponse = await fetch('/api/dashboard/analytics');
+        const analyticsData = await analyticsResponse.json();
+        
+        // 绘制完成趋势图表
+        const ctx = document.getElementById('completionChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: analyticsData.completion_trend.labels,
+                datasets: [{
+                    label: '完成率 (%)',
+                    data: analyticsData.completion_trend.data,
+                    borderColor: '#667eea',
+                    backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100
+                    }
+                }
+            }
+        });
+        
+    } catch (error) {
+        console.error('加载仪表板数据失败:', error);
+    }
+}
+
+// 更新任务状态
+async function updateTaskStatus(taskId, status) {
+    try {
+        const response = await fetch(`/api/tasks/${taskId}/status`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ status: status })
+        });
+        
+        if (response.ok) {
+            // 重新加载数据
+            loadDashboardData();
+        } else {
+            alert('更新任务状态失败');
+        }
+    } catch (error) {
+        console.error('更新任务状态失败:', error);
+        alert('更新任务状态失败');
+    }
+}
+
+// 页面加载时执行
+document.addEventListener('DOMContentLoaded', function() {
+    loadDashboardData();
+    
+    // 每5分钟刷新一次数据
+    setInterval(loadDashboardData, 5 * 60 * 1000);
+});
+</script>
+{% endblock %} 
