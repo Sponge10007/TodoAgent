@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🤖 生活管家AI Agent</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="/static/css/style.css" rel="stylesheet">
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="bi bi-robot"></i> 生活管家AI Agent
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#dashboard" onclick="showSection('dashboard')">
+                            <i class="bi bi-house"></i> 仪表板
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#plans" onclick="showSection('plans')">
+                            <i class="bi bi-calendar-check"></i> 计划管理
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#todos" onclick="showSection('todos')">
+                            <i class="bi bi-check2-square"></i> TodoList
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#analytics" onclick="showSection('analytics')">
+                            <i class="bi bi-graph-up"></i> 数据分析
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主内容区域 -->
+    <div class="container mt-4">
+        <!-- 仪表板页面 -->
+        <div id="dashboard-section" class="section">
+            <div class="row">
+                <div class="col-12">
+                    <h2><i class="bi bi-house text-primary"></i> 仪表板</h2>
+                </div>
+            </div>
+            
+            <!-- 统计卡片 -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h6 class="card-title">活跃计划</h6>
+                                    <h3 id="active-plans">0</h3>
+                                </div>
+                                <i class="bi bi-calendar-check fs-1"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h6 class="card-title">已完成任务</h6>
+                                    <h3 id="completed-tasks">0</h3>
+                                </div>
+                                <i class="bi bi-check-circle fs-1"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-warning text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h6 class="card-title">待办事项</h6>
+                                    <h3 id="pending-todos">0</h3>
+                                </div>
+                                <i class="bi bi-list-task fs-1"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h6 class="card-title">完成率</h6>
+                                    <h3 id="completion-rate">0%</h3>
+                                </div>
+                                <i class="bi bi-graph-up fs-1"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 快速操作 -->
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="bi bi-plus-circle text-primary"></i> 快速创建</h5>
+                        </div>
+                        <div class="card-body">
+                            <button class="btn btn-primary btn-lg w-100 mb-2" onclick="showCreatePlanModal()">
+                                <i class="bi bi-calendar-plus"></i> 创建智能计划
+                            </button>
+                            <button class="btn btn-outline-primary w-100" onclick="showCreateTodoModal()">
+                                <i class="bi bi-plus-square"></i> 添加待办事项
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="bi bi-clock-history text-success"></i> 最近活动</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="recent-activities">
+                                <p class="text-muted">暂无活动记录</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 计划管理页面 -->
+        <div id="plans-section" class="section" style="display: none;">
+            <div class="row">
+                <div class="col-12">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h2><i class="bi bi-calendar-check text-primary"></i> 计划管理</h2>
+                        <button class="btn btn-primary" onclick="showCreatePlanModal()">
+                            <i class="bi bi-plus-circle"></i> 创建新计划
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 计划列表 -->
+            <div id="plans-list" class="row">
+                <!-- 计划卡片将在这里动态生成 -->
+            </div>
+        </div>
+
+        <!-- TodoList页面 -->
+        <div id="todos-section" class="section" style="display: none;">
+            <div class="row">
+                <div class="col-12">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h2><i class="bi bi-check2-square text-primary"></i> TodoList</h2>
+                        <button class="btn btn-primary" onclick="showCreateTodoModal()">
+                            <i class="bi bi-plus-circle"></i> 添加事项
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 过滤器 -->
+            <div class="row mb-3">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <select class="form-select" id="todo-status-filter" onchange="filterTodos()">
+                                        <option value="">全部状态</option>
+                                        <option value="false">未完成</option>
+                                        <option value="true">已完成</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <select class="form-select" id="todo-category-filter" onchange="filterTodos()">
+                                        <option value="">全部分类</option>
+                                        <option value="工作">工作</option>
+                                        <option value="学习">学习</option>
+                                        <option value="生活">生活</option>
+                                        <option value="健康">健康</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <select class="form-select" id="todo-priority-filter" onchange="filterTodos()">
+                                        <option value="">全部优先级</option>
+                                        <option value="高">高优先级</option>
+                                        <option value="中">中优先级</option>
+                                        <option value="低">低优先级</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <button class="btn btn-outline-secondary w-100" onclick="clearTodoFilters()">
+                                        <i class="bi bi-x-circle"></i> 清除筛选
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Todo列表 -->
+            <div id="todos-list">
+                <!-- Todo项目将在这里动态生成 -->
+            </div>
+        </div>
+
+        <!-- 数据分析页面 -->
+        <div id="analytics-section" class="section" style="display: none;">
+            <div class="row">
+                <div class="col-12">
+                    <h2><i class="bi bi-graph-up text-primary"></i> 数据分析</h2>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>完成趋势</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="completion-chart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>分类分布</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="category-chart" width="300" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 创建计划模态框 -->
+    <div class="modal fade" id="createPlanModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">🤖 创建智能计划</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="createPlanForm">
+                        <div class="mb-3">
+                            <label class="form-label">计划类型</label>
+                            <div class="row">
+                                <div class="col-6">
+                                    <input type="radio" class="btn-check" name="planType" id="daily" value="daily" checked>
+                                    <label class="btn btn-outline-primary w-100" for="daily">
+                                        <i class="bi bi-calendar-day"></i> 每日计划
+                                    </label>
+                                </div>
+                                <div class="col-6">
+                                    <input type="radio" class="btn-check" name="planType" id="weekly" value="weekly">
+                                    <label class="btn btn-outline-primary w-100" for="weekly">
+                                        <i class="bi bi-calendar-week"></i> 7天计划
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="planGoal" class="form-label">目标描述 *</label>
+                            <textarea class="form-control" id="planGoal" rows="3" placeholder="请详细描述您的目标，例如：我想学习Python编程，掌握基础语法..." required></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="timePreference" class="form-label">时间偏好（可选）</label>
+                            <textarea class="form-control" id="timePreference" rows="2" placeholder="例如：我早上比较有精神，适合学习；下午2-5点比较忙..."></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="createPlan()">
+                        <i class="bi bi-magic"></i> AI生成计划
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 创建Todo模态框 -->
+    <div class="modal fade" id="createTodoModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">添加待办事项</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="createTodoForm">
+                        <div class="mb-3">
+                            <label for="todoTitle" class="form-label">标题 *</label>
+                            <input type="text" class="form-control" id="todoTitle" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="todoDescription" class="form-label">描述</label>
+                            <textarea class="form-control" id="todoDescription" rows="2"></textarea>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="todoPriority" class="form-label">优先级</label>
+                                <select class="form-select" id="todoPriority">
+                                    <option value="高">高</option>
+                                    <option value="中" selected>中</option>
+                                    <option value="低">低</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="todoCategory" class="form-label">分类</label>
+                                <select class="form-select" id="todoCategory">
+                                    <option value="">无分类</option>
+                                    <option value="工作">工作</option>
+                                    <option value="学习">学习</option>
+                                    <option value="生活">生活</option>
+                                    <option value="健康">健康</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="todoDueDate" class="form-label">截止日期</label>
+                            <input type="datetime-local" class="form-control" id="todoDueDate">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="createTodo()">
+                        <i class="bi bi-plus-circle"></i> 添加
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 加载指示器 -->
+    <div id="loading" class="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center" style="background: rgba(0,0,0,0.5); z-index: 9999; display: none !important;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">加载中...</span>
+        </div>
+    </div>
+
+    <!-- Toast 通知 -->
+    <div class="position-fixed top-0 end-0 p-3" style="z-index: 11">
+        <div id="toast" class="toast" role="alert">
+            <div class="toast-header">
+                <i class="bi bi-info-circle text-primary me-2"></i>
+                <strong class="me-auto">通知</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body" id="toast-body">
+                操作完成
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html> 

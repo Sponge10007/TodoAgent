@@ -1,0 +1,65 @@
+{
+  "plan_title": "两个月健身计划（2025-06-27）",
+  "goal": "我想在两个月内改变自己的身体状况，开始系统的健身计划，包括力量训练和有氧运动",
+  "date": "2025-06-27",
+  "tasks": [
+    {
+      "time": "07:00-07:45",
+      "description": "热身与拉伸",
+      "reason": "为接下来的训练做好准备，避免受伤",
+      "duration": 45,
+      "priority": "高"
+    },
+    {
+      "time": "07:45-08:30",
+      "description": "全身力量训练（深蹲、俯卧撑、哑铃划船等）",
+      "reason": "增强肌肉力量，提升基础代谢率",
+      "duration": 45,
+      "priority": "高"
+    },
+    {
+      "time": "18:00-18:30",
+      "description": "快走或慢跑（有氧运动）",
+      "reason": "提高心肺功能，促进脂肪燃烧",
+      "duration": 30,
+      "priority": "中"
+    },
+    {
+      "time": "18:30-19:00",
+      "description": "核心训练（平板支撑、仰卧起坐等）",
+      "reason": "强化核心肌群，改善体态和稳定性",
+      "duration": 30,
+      "priority": "中"
+    },
+    {
+      "time": "09:00-09:30",
+      "description": "早餐与营养补充",
+      "reason": "提供能量支持全天活动和训练",
+      "duration": 30,
+      "priority": "高"
+    },
+    {
+      "time": "12:00-12:30",
+      "description": "午餐与休息",
+      "reason": "保持体力，为下午活动做准备",
+      "duration": 30,
+      "priority": "中"
+    },
+    {
+      "time": "15:00-15:30",
+      "description": "轻度活动（散步、拉伸）",
+      "reason": "缓解久坐带来的疲劳，促进血液循环",
+      "duration": 30,
+      "priority": "低"
+    },
+    {
+      "time": "19:00-20:00",
+      "description": "周末自由安排（可选：瑜伽、游泳、户外活动）",
+      "reason": "放松身心，增加运动多样性",
+      "duration": 60,
+      "priority": "低"
+    }
+  ],
+  "total_tasks": 8,
+  "estimated_total_time": 300
+}

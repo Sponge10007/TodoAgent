@@ -1,0 +1,37 @@
+{
+  "plan_title": "Python编程学习计划（为找工作做准备）",
+  "goal": "学习Python编程，为找工作做准备",
+  "date": "2025-06-27",
+  "tasks": [
+    {
+      "time": "19:00-19:30",
+      "description": "复习Python基础语法（变量、数据类型、条件语句）",
+      "reason": "巩固基础知识是进一步学习的前提",
+      "duration": 30,
+      "priority": "高"
+    },
+    {
+      "time": "19:30-20:30",
+      "description": "学习Python函数和模块的使用",
+      "reason": "函数和模块是编写结构化代码的关键",
+      "duration": 60,
+      "priority": "高"
+    },
+    {
+      "time": "20:30-21:00",
+      "description": "练习编写简单的Python脚本（如文件读写或数据处理）",
+      "reason": "通过实践加深对知识的理解",
+      "duration": 30,
+      "priority": "中"
+    },
+    {
+      "time": "21:00-22:00",
+      "description": "学习Python面向对象编程（类和对象）",
+      "reason": "面向对象编程是现代软件开发的核心概念",
+      "duration": 60,
+      "priority": "高"
+    }
+  ],
+  "total_tasks": 4,
+  "estimated_total_time": 180
+}

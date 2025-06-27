@@ -1,0 +1,276 @@
+{
+  "user_preferences": {
+    "preferred_time_slots": [],
+    "common_goals": [
+      "理解函数定义、参数传递和模块使用",
+      "掌握类、对象、继承和多态的概念",
+      "掌握异常处理机制和文件读写操作",
+      "熟悉常用标准库和第三方库的使用",
+      "复习常见算法和数据结构（如排序、搜索）",
+      "复习所有知识点并进行模拟面试练习",
+      "熟悉运动流程，建立运动习惯",
+      "增强肌肉力量，提升整体体能",
+      "提升心肺功能，增强身体柔韧性",
+      "让身体恢复，避免过度疲劳",
+      "增强上肢肌肉力量，提升整体协调性",
+      "增强下肢肌肉力量，提升运动表现",
+      "整合所学内容，巩固运动习惯",
+      "搭建开发环境，学习基础概念",
+      "了解agent的概念并实现一个简单agent",
+      "将外部api或工具集成到agent中",
+      "提升agent的决策能力，加入记忆和上下文处理",
+      "整合所有功能，优化代码结构",
+      "全面测试agent功能，修复潜在问题",
+      "总结学习成果，准备项目展示"
+    ],
+    "productivity_patterns": {},
+    "favorite_activities": []
+  },
+  "plan_history": [
+    {
+      "date": "2025-06-27",
+      "goal": "我想在两个月内改变自己的身体状况，开始系统的健身计划，包括力量训练和有氧运动",
+      "total_tasks": 8,
+      "estimated_time": 300,
+      "completion_status": {},
+      "archived_at": "2025-06-27T00:43:03.284856"
+    },
+    {
+      "date": "2025-06-27",
+      "goal": "学习Python编程，为找工作做准备",
+      "total_tasks": 4,
+      "estimated_time": 180,
+      "completion_status": {},
+      "archived_at": "2025-06-27T00:43:11.101789"
+    },
+    {
+      "date": "2025-06-27",
+      "goal": "搭建开发环境，学习基础概念",
+      "total_tasks": 3,
+      "estimated_time": 240,
+      "completion_status": {},
+      "archived_at": "2025-06-27T01:12:37.330599"
+    },
+    {
+      "date": "2025-06-28",
+      "goal": "掌握LangChain的高级功能和组件",
+      "total_tasks": 3,
+      "estimated_time": 240,
+      "completion_status": {},
+      "archived_at": "2025-06-27T01:12:37.331171"
+    },
+    {
+      "date": "2025-06-29",
+      "goal": "明确项目需求并设计架构",
+      "total_tasks": 3,
+      "estimated_time": 240,
+      "completion_status": {},
+      "archived_at": "2025-06-27T01:12:37.331717"
+    },
+    {
+      "date": "2025-06-30",
+      "goal": "编写代码并测试核心功能",
+      "total_tasks": 3,
+      "estimated_time": 240,
+      "completion_status": {},
+      "archived_at": "2025-06-27T01:12:37.332272"
+    },
+    {
+      "date": "2025-07-01",
+      "goal": "增强AI Agent的交互性",
+      "total_tasks": 3,
+      "estimated_time": 240,
+      "completion_status": {},
+      "archived_at": "2025-06-27T01:12:37.332802"
+    },
+    {
+      "date": "2025-07-02",
+      "goal": "完善功能并进行系统测试",
+      "total_tasks": 3,
+      "estimated_time": 240,
+      "completion_status": {},
+      "archived_at": "2025-06-27T01:12:37.333342"
+    },
+    {
+      "date": "2025-07-03",
+      "goal": "总结学习成果并展示项目",
+      "total_tasks": 3,
+      "estimated_time": 240,
+      "completion_status": {},
+      "archived_at": "2025-06-27T01:12:37.333987"
+    },
+    {
+      "date": "2025-06-27",
+      "goal": "掌握Python基础语法和常用数据结构",
+      "total_tasks": 3,
+      "estimated_time": 240,
+      "completion_status": {},
+      "archived_at": "2025-06-27T01:13:21.377962"
+    },
+    {
+      "date": "2025-06-28",
+      "goal": "理解函数定义、参数传递和模块使用",
+      "total_tasks": 3,
+      "estimated_time": 240,
+      "completion_status": {},
+      "archived_at": "2025-06-27T01:13:21.378979"
+    },
+    {
+      "date": "2025-06-29",
+      "goal": "掌握类、对象、继承和多态的概念",
+      "total_tasks": 3,
+      "estimated_time": 240,
+      "completion_status": {},
+      "archived_at": "2025-06-27T01:13:21.378979"
+    },
+    {
+      "date": "2025-06-30",
+      "goal": "掌握异常处理机制和文件读写操作",
+      "total_tasks": 3,
+      "estimated_time": 240,
+      "completion_status": {},
+      "archived_at": "2025-06-27T01:13:21.379971"
+    },
+    {
+      "date": "2025-07-01",
+      "goal": "熟悉常用标准库和第三方库的使用",
+      "total_tasks": 3,
+      "estimated_time": 240,
+      "completion_status": {},
+      "archived_at": "2025-06-27T01:13:21.380978"
+    },
+    {
+      "date": "2025-07-02",
+      "goal": "复习常见算法和数据结构（如排序、搜索）",
+      "total_tasks": 3,
+      "estimated_time": 240,
+      "completion_status": {},
+      "archived_at": "2025-06-27T01:13:21.380978"
+    },
+    {
+      "date": "2025-07-03",
+      "goal": "复习所有知识点并进行模拟面试练习",
+      "total_tasks": 3,
+      "estimated_time": 240,
+      "completion_status": {},
+      "archived_at": "2025-06-27T01:13:21.381974"
+    },
+    {
+      "date": "2025-06-27",
+      "goal": "熟悉运动流程，建立运动习惯",
+      "total_tasks": 3,
+      "estimated_time": 180,
+      "completion_status": {},
+      "archived_at": "2025-06-27T01:13:58.318031"
+    },
+    {
+      "date": "2025-06-28",
+      "goal": "增强肌肉力量，提升整体体能",
+      "total_tasks": 3,
+      "estimated_time": 210,
+      "completion_status": {},
+      "archived_at": "2025-06-27T01:13:58.319071"
+    },
+    {
+      "date": "2025-06-29",
+      "goal": "提升心肺功能，增强身体柔韧性",
+      "total_tasks": 3,
+      "estimated_time": 210,
+      "completion_status": {},
+      "archived_at": "2025-06-27T01:13:58.319647"
+    },
+    {
+      "date": "2025-06-30",
+      "goal": "让身体恢复，避免过度疲劳",
+      "total_tasks": 2,
+      "estimated_time": 120,
+      "completion_status": {},
+      "archived_at": "2025-06-27T01:13:58.319647"
+    },
+    {
+      "date": "2025-07-01",
+      "goal": "增强上肢肌肉力量，提升整体协调性",
+      "total_tasks": 3,
+      "estimated_time": 210,
+      "completion_status": {},
+      "archived_at": "2025-06-27T01:13:58.319647"
+    },
+    {
+      "date": "2025-07-02",
+      "goal": "增强下肢肌肉力量，提升运动表现",
+      "total_tasks": 3,
+      "estimated_time": 210,
+      "completion_status": {},
+      "archived_at": "2025-06-27T01:13:58.320900"
+    },
+    {
+      "date": "2025-07-03",
+      "goal": "整合所学内容，巩固运动习惯",
+      "total_tasks": 3,
+      "estimated_time": 210,
+      "completion_status": {},
+      "archived_at": "2025-06-27T01:13:58.321906"
+    },
+    {
+      "date": "2025-06-27",
+      "goal": "搭建开发环境，学习基础概念",
+      "total_tasks": 3,
+      "estimated_time": 240,
+      "completion_status": {},
+      "archived_at": "2025-06-27T01:27:06.948627"
+    },
+    {
+      "date": "2025-06-28",
+      "goal": "了解Agent的概念并实现一个简单Agent",
+      "total_tasks": 3,
+      "estimated_time": 210,
+      "completion_status": {},
+      "archived_at": "2025-06-27T01:27:06.948627"
+    },
+    {
+      "date": "2025-06-29",
+      "goal": "将外部API或工具集成到Agent中",
+      "total_tasks": 3,
+      "estimated_time": 210,
+      "completion_status": {},
+      "archived_at": "2025-06-27T01:27:06.949639"
+    },
+    {
+      "date": "2025-06-30",
+      "goal": "提升Agent的决策能力，加入记忆和上下文处理",
+      "total_tasks": 3,
+      "estimated_time": 210,
+      "completion_status": {},
+      "archived_at": "2025-06-27T01:27:06.950637"
+    },
+    {
+      "date": "2025-07-01",
+      "goal": "整合所有功能，优化代码结构",
+      "total_tasks": 3,
+      "estimated_time": 210,
+      "completion_status": {},
+      "archived_at": "2025-06-27T01:27:06.950637"
+    },
+    {
+      "date": "2025-07-02",
+      "goal": "全面测试Agent功能，修复潜在问题",
+      "total_tasks": 3,
+      "estimated_time": 210,
+      "completion_status": {},
+      "archived_at": "2025-06-27T01:27:06.951757"
+    },
+    {
+      "date": "2025-07-03",
+      "goal": "总结学习成果，准备项目展示",
+      "total_tasks": 3,
+      "estimated_time": 210,
+      "completion_status": {},
+      "archived_at": "2025-06-27T01:27:06.952770"
+    }
+  ],
+  "completion_stats": {
+    "total_plans": 30,
+    "completed_tasks": 0,
+    "success_rate": 0.0
+  }
+}
