@@ -542,7 +542,7 @@ def delete_subtask_service(db: Session, subtask_id: int, user_id: int) -> bool:
     return False
 
 # AI天数估算服务
-def estimate_task_days_service(db: Session, task_description: str) -> Dict[str, int]:
+def estimate_task_days_service(db: Session, task_description: str) -> Dict[str, Any]:
     """使用AI估算任务所需天数"""
     ai_estimated = ai_agent._estimate_required_days(task_description)
     
@@ -551,7 +551,7 @@ def estimate_task_days_service(db: Session, task_description: str) -> Dict[str, 
         "confidence_level": 0.8  # 简单的置信度
     }
 
-def suggest_plan_duration_service(db: Session, goal: str, user_preferred_days: int = None) -> Dict[str, Any]:
+def suggest_plan_duration_service(db: Session, goal: str, user_preferred_days: Optional[int] = None) -> Dict[str, Any]:
     """AI建议计划持续时间"""
     ai_estimated = ai_agent._estimate_required_days(goal)
     

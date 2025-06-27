@@ -803,8 +803,7 @@ async function autoEstimateDays() {
     try {
         const result = await Utils.apiRequest('/ai/estimate-days', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `task_description=${encodeURIComponent(goal)}`
+            body: { task_description: goal }
         });
         
         document.getElementById('aiSuggestedDays').textContent = result.ai_estimated_days + '天';
@@ -1542,7 +1541,7 @@ async function deletePlan() {
         await PlanManager.loadPlans();
         
         // 刷新仪表板
-        await PageManager.loadDashboard();
+        await DashboardManager.loadDashboard();
         
     } catch (error) {
         console.error('删除计划失败:', error);

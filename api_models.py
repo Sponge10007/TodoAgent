@@ -202,5 +202,25 @@ class ErrorResponse(BaseModel):
     error: str
     details: Optional[str] = None
 
+# AI功能相关
+class EstimateDaysRequest(BaseModel):
+    task_description: str = Field(..., min_length=1, max_length=1000, description="任务描述")
+
+class EstimateDaysResponse(BaseModel):
+    ai_estimated_days: int = Field(..., description="AI估算的天数")
+    confidence_level: float = Field(0.8, description="置信度")
+
+class SuggestDurationRequest(BaseModel):
+    goal: str = Field(..., min_length=1, max_length=1000, description="目标描述")
+    user_preferred_days: Optional[int] = Field(None, ge=1, le=365, description="用户偏好天数")
+
+class SuggestDurationResponse(BaseModel):
+    ai_suggested_days: int = Field(..., description="AI建议天数")
+    user_preferred_days: Optional[int] = Field(None, description="用户偏好天数")
+    recommended_days: int = Field(..., description="推荐天数")
+    reasoning: str = Field(..., description="推理说明")
+    warning: Optional[str] = Field(None, description="警告信息")
+    note: Optional[str] = Field(None, description="注意事项")
+
 # 解决自引用问题
 TaskResponse.model_rebuild() 

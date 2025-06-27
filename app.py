@@ -234,20 +234,19 @@ async def delete_todo(todo_id: int, db: Session = Depends(get_db)):
     return SuccessResponse(message="Todo项目删除成功")
 
 # AI估算服务
-@app.post("/api/ai/estimate-days")
-async def estimate_task_days(task_description: str = Query(...), db: Session = Depends(get_db)):
+@app.post("/api/ai/estimate-days", response_model=EstimateDaysResponse)
+async def estimate_task_days(request: EstimateDaysRequest, db: Session = Depends(get_db)):
     """AI估算任务所需天数"""
-    result = estimate_task_days_service(db, task_description)
+    result = estimate_task_days_service(db, request.task_description)
     return result
 
-@app.post("/api/ai/suggest-duration")
+@app.post("/api/ai/suggest-duration", response_model=SuggestDurationResponse)
 async def suggest_plan_duration(
-    goal: str = Query(...), 
-    user_preferred_days: int = Query(None), 
+    request: SuggestDurationRequest,
     db: Session = Depends(get_db)
 ):
     """AI建议计划持续时间"""
-    suggestions = suggest_plan_duration_service(db, goal, user_preferred_days)
+    suggestions = suggest_plan_duration_service(db, request.goal, request.user_preferred_days)
     return suggestions
 
 # AI反问功能
