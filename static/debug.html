@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>调试页面</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .debug-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; }
+        .success { background-color: #d4edda; }
+        .error { background-color: #f8d7da; }
+        .loading { background-color: #fff3cd; }
+        pre { background-color: #f8f9fa; padding: 10px; overflow: auto; }
+        button { margin: 5px; padding: 10px 15px; }
+    </style>
+</head>
+<body>
+    <h1>前端调试页面</h1>
+    
+    <div class="debug-section">
+        <h3>API 连接测试</h3>
+        <button onclick="testDashboardAPI()">测试 Dashboard API</button>
+        <button onclick="testPlansAPI()">测试 Plans API</button>
+        <button onclick="testTodosAPI()">测试 Todos API</button>
+        <div id="api-results"></div>
+    </div>
+    
+    <div class="debug-section">
+        <h3>前端功能测试</h3>
+        <button onclick="testPageManager()">测试页面管理器</button>
+        <button onclick="testUtils()">测试工具函数</button>
+        <div id="frontend-results"></div>
+    </div>
+    
+    <div class="debug-section">
+        <h3>控制台日志</h3>
+        <div id="console-log"></div>
+    </div>
+
+    <script>
+        // 重定向控制台输出到页面
+        const originalLog = console.log;
+        const originalError = console.error;
+        const logContainer = document.getElementById('console-log');
+        
+        function addLogMessage(message, type = 'log') {
+            const div = document.createElement('div');
+            div.className = type === 'error' ? 'error' : 'success';
+            div.innerHTML = `<small>${new Date().toLocaleTimeString()}</small> <strong>[${type.toUpperCase()}]</strong> ${message}`;
+            logContainer.appendChild(div);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+        
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            addLogMessage(args.join(' '), 'log');
+        };
+        
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            addLogMessage(args.join(' '), 'error');
+        };
+
+        // API 测试函数
+        async function testDashboardAPI() {
+            const resultsDiv = document.getElementById('api-results');
+            resultsDiv.innerHTML = '<div class="loading">测试中...</div>';
+            
+            try {
+                console.log('开始测试 Dashboard API...');
+                
+                const response = await fetch('/api/dashboard/1');
+                console.log('响应状态:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('Dashboard 数据:', data);
+                
+                resultsDiv.innerHTML = `
+                    <div class="success">
+                        <h4>✅ Dashboard API 测试成功</h4>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </div>
+                `;
+                
+                // 测试前端数据处理
+                testDashboardRendering(data);
+                
+            } catch (error) {
+                console.error('Dashboard API 测试失败:', error);
+                resultsDiv.innerHTML = `
+                    <div class="error">
+                        <h4>❌ Dashboard API 测试失败</h4>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        function testDashboardRendering(data) {
+            try {
+                console.log('测试仪表板渲染逻辑...');
+                
+                // 模拟主页面的渲染逻辑
+                const stats = {
+                    activePlans: data.active_plans,
+                    completedTasks: data.completed_tasks,
+                    pendingTodos: data.total_todos - data.completed_todos,
+                    completionRate: Math.round(data.completion_rate * 100) + '%'
+                };
+                
+                console.log('统计数据:', stats);
+                
+                // 测试最近活动渲染
+                if (!data.recent_activities || data.recent_activities.length === 0) {
+                    console.log('没有最近活动数据，这就是为什么显示"暂无活动记录"');
+                } else {
+                    console.log('最近活动:', data.recent_activities);
+                }
+                
+            } catch (error) {
+                console.error('渲染测试失败:', error);
+            }
+        }
+        
+        async function testPlansAPI() {
+            const resultsDiv = document.getElementById('api-results');
+            resultsDiv.innerHTML = '<div class="loading">测试 Plans API...</div>';
+            
+            try {
+                const response = await fetch('/api/plans/?user_id=1');
+                const data = await response.json();
+                
+                resultsDiv.innerHTML = `
+                    <div class="success">
+                        <h4>✅ Plans API 测试成功</h4>
+                        <p>计划数量: ${data.length}</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </div>
+                `;
+                
+            } catch (error) {
+                console.error('Plans API 测试失败:', error);
+                resultsDiv.innerHTML = `
+                    <div class="error">
+                        <h4>❌ Plans API 测试失败</h4>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        async function testTodosAPI() {
+            const resultsDiv = document.getElementById('api-results');
+            resultsDiv.innerHTML = '<div class="loading">测试 Todos API...</div>';
+            
+            try {
+                const response = await fetch('/api/todos/?user_id=1');
+                const data = await response.json();
+                
+                resultsDiv.innerHTML = `
+                    <div class="success">
+                        <h4>✅ Todos API 测试成功</h4>
+                        <p>Todo数量: ${data.length}</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </div>
+                `;
+                
+            } catch (error) {
+                console.error('Todos API 测试失败:', error);
+                resultsDiv.innerHTML = `
+                    <div class="error">
+                        <h4>❌ Todos API 测试失败</h4>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        function testPageManager() {
+            const resultsDiv = document.getElementById('frontend-results');
+            
+            try {
+                console.log('测试前端功能...');
+                
+                // 测试各种工具函数
+                const testDate = new Date().toISOString();
+                console.log('测试日期格式化:', testDate);
+                
+                resultsDiv.innerHTML = `
+                    <div class="success">
+                        <h4>✅ 前端功能测试</h4>
+                        <p>JavaScript 环境正常</p>
+                        <p>fetch API 可用: ${typeof fetch !== 'undefined'}</p>
+                        <p>当前时间: ${new Date().toLocaleString()}</p>
+                    </div>
+                `;
+                
+            } catch (error) {
+                console.error('前端测试失败:', error);
+                resultsDiv.innerHTML = `
+                    <div class="error">
+                        <h4>❌ 前端功能测试失败</h4>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        function testUtils() {
+            try {
+                // 复制主应用的 Utils 逻辑
+                const Utils = {
+                    formatDate(dateString) {
+                        if (!dateString) return '-';
+                        const date = new Date(dateString);
+                        return date.toLocaleDateString('zh-CN', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+                    }
+                };
+                
+                const testDate = new Date().toISOString();
+                const formatted = Utils.formatDate(testDate);
+                
+                console.log('工具函数测试成功:', formatted);
+                
+            } catch (error) {
+                console.error('工具函数测试失败:', error);
+            }
+        }
+        
+        // 页面加载时自动运行基本测试
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('调试页面已加载');
+            testDashboardAPI();
+        });
+    </script>
+</body>
+</html> 

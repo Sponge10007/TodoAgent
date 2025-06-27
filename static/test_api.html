@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API 测试页面</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-result { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        pre { background-color: #f8f9fa; padding: 10px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>API 连接测试</h1>
+    
+    <div id="tests"></div>
+    
+    <script>
+        async function testAPI() {
+            const testsContainer = document.getElementById('tests');
+            
+            // 测试 1: 基本连接测试
+            try {
+                console.log('开始测试 API 连接...');
+                const response = await fetch('/api/dashboard/1');
+                console.log('响应状态:', response.status);
+                console.log('响应头:', response.headers);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('响应数据:', data);
+                    
+                    testsContainer.innerHTML += `
+                        <div class="test-result success">
+                            <h3>✅ API 连接成功</h3>
+                            <p>状态码: ${response.status}</p>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                } else {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+            } catch (error) {
+                console.error('API 测试失败:', error);
+                testsContainer.innerHTML += `
+                    <div class="test-result error">
+                        <h3>❌ API 连接失败</h3>
+                        <p>错误: ${error.message}</p>
+                    </div>
+                `;
+            }
+            
+            // 测试 2: 检查前端 JavaScript 环境
+            try {
+                if (typeof fetch !== 'undefined') {
+                    testsContainer.innerHTML += `
+                        <div class="test-result success">
+                            <h3>✅ fetch API 可用</h3>
+                        </div>
+                    `;
+                } else {
+                    throw new Error('fetch API 不可用');
+                }
+            } catch (error) {
+                testsContainer.innerHTML += `
+                    <div class="test-result error">
+                        <h3>❌ JavaScript 环境问题</h3>
+                        <p>错误: ${error.message}</p>
+                    </div>
+                `;
+            }
+            
+            // 测试 3: 模拟前端应用的请求方式
+            try {
+                const apiRequest = async (url, options = {}) => {
+                    const config = {
+                        headers: {
+                            'Content-Type': 'application/json',
+                            ...options.headers
+                        },
+                        ...options
+                    };
+                    
+                    const response = await fetch('/api' + url, config);
+                    const data = await response.json();
+                    
+                    if (!response.ok) {
+                        throw new Error(data.detail || '请求失败');
+                    }
+                    
+                    return data;
+                };
+                
+                const dashboardData = await apiRequest('/dashboard/1');
+                console.log('模拟前端请求成功:', dashboardData);
+                
+                testsContainer.innerHTML += `
+                    <div class="test-result success">
+                        <h3>✅ 模拟前端请求成功</h3>
+                        <p>活跃计划: ${dashboardData.active_plans}</p>
+                        <p>已完成任务: ${dashboardData.completed_tasks}</p>
+                        <p>待办事项: ${dashboardData.total_todos}</p>
+                        <p>完成率: ${Math.round(dashboardData.completion_rate * 100)}%</p>
+                        <p>最近活动数量: ${dashboardData.recent_activities.length}</p>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('模拟前端请求失败:', error);
+                testsContainer.innerHTML += `
+                    <div class="test-result error">
+                        <h3>❌ 模拟前端请求失败</h3>
+                        <p>错误: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // 页面加载完成后运行测试
+        document.addEventListener('DOMContentLoaded', testAPI);
+    </script>
+</body>
+</html> 

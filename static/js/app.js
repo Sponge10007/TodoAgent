@@ -17,12 +17,21 @@ const API_BASE = '/api';
 const Utils = {
     // 显示加载指示器
     showLoading() {
-        document.getElementById('loading').style.display = 'flex';
+        const loadingEl = document.getElementById('loading');
+        if (loadingEl) {
+            loadingEl.style.display = 'flex';
+        }
     },
     
     // 隐藏加载指示器
     hideLoading() {
-        document.getElementById('loading').style.display = 'none';
+        const loadingEl = document.getElementById('loading');
+        if (loadingEl) {
+            // 使用 !important 来确保样式被应用，并添加一个延时以处理可能的渲染竞争
+            setTimeout(() => {
+                loadingEl.style.cssText = 'display: none !important;';
+            }, 100); // 100毫秒的延时
+        }
     },
     
     // 显示Toast通知
@@ -116,7 +125,7 @@ const PageManager = {
     // 显示指定页面
     showSection(sectionName) {
         // 隐藏所有页面
-        document.querySelectorAll('.section').forEach(section => {
+        document.querySelectorAll('main .section').forEach(section => {
             section.style.display = 'none';
         });
         
@@ -131,7 +140,10 @@ const PageManager = {
         document.querySelectorAll('.nav-link').forEach(link => {
             link.classList.remove('active');
         });
-        document.querySelector(`[onclick="showSection('${sectionName}')"]`)?.classList.add('active');
+        const activeLink = document.querySelector(`[onclick="PageManager.showSection('${sectionName}')"]`);
+        if (activeLink) {
+            activeLink.classList.add('active');
+        }
         
         // 加载页面数据
         this.loadSectionData(sectionName);
@@ -201,14 +213,20 @@ const DashboardManager = {
             <div class="activity-timeline">
                 ${activities.map(activity => `
                     <div class="activity-item">
-                        <div class="activity-time">${Utils.formatDate(activity.timestamp)}</div>
-                        <div class="activity-content">${activity.title}</div>
+                        <i class="bi bi-check-circle-fill activity-icon"></i>
+                        <div class="activity-content">
+                            <span class="activity-title">${activity.title}</span>
+                            <small class="activity-time text-muted">${Utils.formatDate(activity.timestamp)}</small>
+                        </div>
                     </div>
                 `).join('')}
             </div>
         `;
         
         container.innerHTML = html;
+        
+        // 强制隐藏加载指示器，确保UI状态正确
+        Utils.hideLoading();
     }
 };
 
