@@ -7,7 +7,378 @@ const AppState = {
     plans: [],
     todos: [],
     dashboardData: null,
-    charts: {}
+    charts: {},
+    // 新增状态
+    ws: null,
+    notifications: [],
+    dragState: {
+        draggedElement: null,
+        draggedIndex: null,
+        isDragging: false
+    }
+};
+
+// WebSocket通知管理
+const NotificationManager = {
+    // 初始化WebSocket连接
+    init() {
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${wsProtocol}//${window.location.host}/ws/${AppState.currentUser}`;
+        
+        AppState.ws = new WebSocket(wsUrl);
+        
+        AppState.ws.onopen = () => {
+            console.log('WebSocket连接已建立');
+            this.showConnectionStatus('connected');
+        };
+        
+        AppState.ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            this.handleMessage(data);
+        };
+        
+        AppState.ws.onclose = () => {
+            console.log('WebSocket连接已断开');
+            this.showConnectionStatus('disconnected');
+            // 5秒后尝试重连
+            setTimeout(() => this.init(), 5000);
+        };
+        
+        AppState.ws.onerror = (error) => {
+            console.error('WebSocket错误:', error);
+            this.showConnectionStatus('error');
+        };
+        
+        // 心跳检测
+        setInterval(() => {
+            if (AppState.ws && AppState.ws.readyState === WebSocket.OPEN) {
+                AppState.ws.send('ping');
+            }
+        }, 30000);
+    },
+    
+    // 处理WebSocket消息
+    handleMessage(data) {
+        if (data.type === 'notification') {
+            this.showNotification(data.payload);
+            AppState.notifications.unshift(data.payload);
+            this.updateNotificationBadge();
+        }
+    },
+    
+    // 显示通知
+    showNotification(notification) {
+        // 浏览器通知
+        if (Notification.permission === 'granted') {
+            new Notification(notification.title, {
+                body: notification.message,
+                icon: '/static/images/logo.png',
+                tag: notification.id
+            });
+        }
+        
+        // 页面内通知
+        this.showInPageNotification(notification);
+    },
+    
+    // 显示页面内通知
+    showInPageNotification(notification) {
+        const container = document.getElementById('notification-container') || this.createNotificationContainer();
+        
+        const notificationEl = document.createElement('div');
+        notificationEl.className = `alert alert-${this.getPriorityClass(notification.priority)} alert-dismissible fade show notification-item`;
+        notificationEl.innerHTML = `
+            <div class="d-flex align-items-center">
+                <i class="bi bi-bell me-2"></i>
+                <div class="flex-grow-1">
+                    <strong>${notification.title}</strong>
+                    <div class="small">${notification.message}</div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+        
+        container.appendChild(notificationEl);
+        
+        // 5秒后自动消失
+        setTimeout(() => {
+            if (notificationEl.parentNode) {
+                notificationEl.remove();
+            }
+        }, 5000);
+    },
+    
+    // 创建通知容器
+    createNotificationContainer() {
+        const container = document.createElement('div');
+        container.id = 'notification-container';
+        container.className = 'notification-container';
+        container.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            max-width: 400px;
+        `;
+        document.body.appendChild(container);
+        return container;
+    },
+    
+    // 获取优先级对应的样式类
+    getPriorityClass(priority) {
+        const priorityMap = {
+            'low': 'info',
+            'normal': 'primary',
+            'high': 'warning',
+            'urgent': 'danger'
+        };
+        return priorityMap[priority] || 'primary';
+    },
+    
+    // 显示连接状态
+    showConnectionStatus(status) {
+        const statusEl = document.getElementById('connection-status') || this.createConnectionStatus();
+        
+        const statusConfig = {
+            'connected': { class: 'text-success', icon: 'wifi', text: '已连接' },
+            'disconnected': { class: 'text-warning', icon: 'wifi-off', text: '连接断开' },
+            'error': { class: 'text-danger', icon: 'exclamation-triangle', text: '连接错误' }
+        };
+        
+        const config = statusConfig[status];
+        statusEl.className = `small ${config.class}`;
+        statusEl.innerHTML = `<i class="bi bi-${config.icon} me-1"></i>${config.text}`;
+    },
+    
+    // 创建连接状态指示器
+    createConnectionStatus() {
+        const statusEl = document.createElement('div');
+        statusEl.id = 'connection-status';
+        statusEl.className = 'small text-muted';
+        
+        // 添加到导航栏
+        const navbar = document.querySelector('.navbar-nav');
+        if (navbar) {
+            const li = document.createElement('li');
+            li.className = 'nav-item d-flex align-items-center';
+            li.appendChild(statusEl);
+            navbar.appendChild(li);
+        }
+        
+        return statusEl;
+    },
+    
+    // 更新通知徽章
+    updateNotificationBadge() {
+        const unreadCount = AppState.notifications.filter(n => !n.read).length;
+        const badge = document.getElementById('notification-badge');
+        
+        if (badge) {
+            if (unreadCount > 0) {
+                badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+                badge.style.display = 'inline';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+    },
+    
+    // 请求通知权限
+    async requestPermission() {
+        if ('Notification' in window && Notification.permission === 'default') {
+            const permission = await Notification.requestPermission();
+            return permission === 'granted';
+        }
+        return Notification.permission === 'granted';
+    }
+};
+
+// 拖拽管理器
+const DragManager = {
+    // 初始化拖拽功能
+    init() {
+        this.setupEventListeners();
+    },
+    
+    // 设置事件监听器
+    setupEventListeners() {
+        document.addEventListener('dragstart', this.handleDragStart.bind(this));
+        document.addEventListener('dragover', this.handleDragOver.bind(this));
+        document.addEventListener('drop', this.handleDrop.bind(this));
+        document.addEventListener('dragend', this.handleDragEnd.bind(this));
+    },
+    
+    // 开始拖拽
+    handleDragStart(e) {
+        if (!e.target.draggable) return;
+        
+        AppState.dragState.draggedElement = e.target;
+        AppState.dragState.isDragging = true;
+        
+        // 获取拖拽数据
+        const dragData = this.getDragData(e.target);
+        e.dataTransfer.setData('text/plain', JSON.stringify(dragData));
+        
+        e.target.classList.add('dragging');
+    },
+    
+    // 拖拽悬停
+    handleDragOver(e) {
+        if (!AppState.dragState.isDragging) return;
+        
+        e.preventDefault();
+        
+        const dropZone = e.target.closest('.drop-zone');
+        if (dropZone) {
+            dropZone.classList.add('drag-over');
+        }
+    },
+    
+    // 处理放置
+    handleDrop(e) {
+        e.preventDefault();
+        
+        if (!AppState.dragState.isDragging) return;
+        
+        const dropZone = e.target.closest('.drop-zone');
+        if (!dropZone) return;
+        
+        try {
+            const dragData = JSON.parse(e.dataTransfer.getData('text/plain'));
+            this.handleDropAction(dragData, dropZone);
+        } catch (error) {
+            console.error('拖拽处理失败:', error);
+        }
+        
+        dropZone.classList.remove('drag-over');
+    },
+    
+    // 结束拖拽
+    handleDragEnd(e) {
+        AppState.dragState.isDragging = false;
+        
+        if (AppState.dragState.draggedElement) {
+            AppState.dragState.draggedElement.classList.remove('dragging');
+            AppState.dragState.draggedElement = null;
+        }
+        
+        // 清理拖拽样式
+        document.querySelectorAll('.drag-over').forEach(el => {
+            el.classList.remove('drag-over');
+        });
+    },
+    
+    // 获取拖拽数据
+    getDragData(element) {
+        const data = {
+            type: element.dataset.dragType || 'unknown',
+            id: element.dataset.id,
+            sourceContainer: element.closest('[data-container]')?.dataset.container
+        };
+        
+        // 根据类型添加特定数据
+        if (data.type === 'todo') {
+            data.todo = {
+                id: data.id,
+                title: element.querySelector('.todo-title')?.textContent,
+                completed: element.classList.contains('completed')
+            };
+        } else if (data.type === 'task') {
+            data.task = {
+                id: data.id,
+                title: element.querySelector('.task-title')?.textContent,
+                status: element.dataset.status
+            };
+        }
+        
+        return data;
+    },
+    
+    // 处理放置动作
+    async handleDropAction(dragData, dropZone) {
+        const dropType = dropZone.dataset.dropType;
+        const targetContainer = dropZone.dataset.container;
+        
+        console.log('拖拽操作:', dragData, '目标:', dropType, targetContainer);
+        
+        try {
+            if (dragData.type === 'todo' && dropType === 'todo-reorder') {
+                await this.handleTodoReorder(dragData, dropZone);
+            } else if (dragData.type === 'task' && dropType === 'task-reorder') {
+                await this.handleTaskReorder(dragData, dropZone);
+            } else if (dragData.type === 'todo' && dropType === 'status-change') {
+                await this.handleStatusChange(dragData, dropZone);
+            }
+            
+            Utils.showToast('操作成功', 'success');
+        } catch (error) {
+            console.error('拖拽操作失败:', error);
+            Utils.showToast('操作失败', 'error');
+        }
+    },
+    
+    // 处理Todo重排序
+    async handleTodoReorder(dragData, dropZone) {
+        const targetIndex = this.getDropIndex(dropZone);
+        console.log('Todo重排序:', dragData.id, '到位置:', targetIndex);
+        
+        // 这里可以调用API更新排序
+        // await Utils.apiRequest(`/todos/${dragData.id}/reorder`, {
+        //     method: 'PUT',
+        //     body: { new_index: targetIndex }
+        // });
+        
+        // 重新加载数据
+        await TodoManager.loadTodos();
+    },
+    
+    // 处理任务重排序
+    async handleTaskReorder(dragData, dropZone) {
+        const targetIndex = this.getDropIndex(dropZone);
+        console.log('任务重排序:', dragData.id, '到位置:', targetIndex);
+        
+        // 这里可以调用API更新排序
+        // 重新加载数据
+        if (AppState.currentSection === 'plans' && currentPlan) {
+            await viewPlanDetails(currentPlan.id);
+        }
+    },
+    
+    // 处理状态变更
+    async handleStatusChange(dragData, dropZone) {
+        const newStatus = dropZone.dataset.status;
+        console.log('状态变更:', dragData.id, '到状态:', newStatus);
+        
+        if (dragData.type === 'todo') {
+            const isCompleted = newStatus === 'completed';
+            await toggleTodo(dragData.id, isCompleted);
+        }
+    },
+    
+    // 获取放置位置索引
+    getDropIndex(dropZone) {
+        const siblings = Array.from(dropZone.parentNode.children);
+        return siblings.indexOf(dropZone);
+    },
+    
+    // 为元素启用拖拽
+    enableDrag(element, type, id) {
+        element.draggable = true;
+        element.dataset.dragType = type;
+        element.dataset.id = id;
+        element.classList.add('draggable');
+    },
+    
+    // 创建放置区域
+    createDropZone(type, container = null) {
+        const dropZone = document.createElement('div');
+        dropZone.className = 'drop-zone';
+        dropZone.dataset.dropType = type;
+        if (container) {
+            dropZone.dataset.container = container;
+        }
+        return dropZone;
+    }
 };
 
 // API基础配置
@@ -1705,7 +2076,14 @@ function showReminderModal(planId) {
     // 监听邮件提醒复选框变化
     document.getElementById('emailReminder').addEventListener('change', function() {
         const emailSection = document.getElementById('emailSection');
-        emailSection.style.display = this.checked ? 'block' : 'none';
+        const emailTestSection = document.getElementById('emailTestSection');
+        if (this.checked) {
+            emailSection.style.display = 'block';
+            emailTestSection.style.display = 'block';
+        } else {
+            emailSection.style.display = 'none';
+            emailTestSection.style.display = 'none';
+        }
     });
 }
 
@@ -1828,6 +2206,43 @@ function showBrowserNotification(reminder) {
     }
 }
 
+// 邮件测试功能
+async function testEmailService() {
+    const userEmail = document.getElementById('userEmail').value.trim();
+    
+    if (!userEmail) {
+        Utils.showToast('请先输入邮箱地址', 'error');
+        return;
+    }
+    
+    // 验证邮箱格式
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(userEmail)) {
+        Utils.showToast('请输入有效的邮箱地址', 'error');
+        return;
+    }
+    
+    Utils.showLoading();
+    
+    try {
+        const response = await Utils.apiRequest(`/email/test?to_email=${encodeURIComponent(userEmail)}`, {
+            method: 'POST'
+        });
+        
+        if (response.success) {
+            Utils.showToast('测试邮件发送成功！请检查您的邮箱（包括垃圾邮件箱）', 'success');
+        } else {
+            Utils.showToast('测试邮件发送失败: ' + response.message, 'error');
+        }
+        
+    } catch (error) {
+        console.error('邮件测试失败:', error);
+        Utils.showToast('邮件测试失败: ' + error.message, 'error');
+    } finally {
+        Utils.hideLoading();
+    }
+}
+
 // 页面加载时检查提醒设置
 document.addEventListener('DOMContentLoaded', function() {
     // 检查是否有保存的提醒设置
@@ -1845,5 +2260,211 @@ document.addEventListener('DOMContentLoaded', function() {
     // 检查浏览器通知权限
     if ('Notification' in window) {
         console.log('浏览器通知权限状态:', Notification.permission);
+    }
+});
+
+// 文件上传管理
+const FileManager = {
+    // 初始化文件上传
+    init() {
+        this.setupFileUpload();
+    },
+    
+    // 设置文件上传
+    setupFileUpload() {
+        // 创建文件上传区域
+        const uploadAreas = document.querySelectorAll('.file-upload-area');
+        uploadAreas.forEach(area => {
+            this.setupDropZone(area);
+        });
+    },
+    
+    // 设置拖拽上传区域
+    setupDropZone(area) {
+        area.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            area.classList.add('drag-over');
+        });
+        
+        area.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            area.classList.remove('drag-over');
+        });
+        
+        area.addEventListener('drop', (e) => {
+            e.preventDefault();
+            area.classList.remove('drag-over');
+            
+            const files = Array.from(e.dataTransfer.files);
+            this.handleFiles(files, area);
+        });
+        
+        // 点击上传
+        area.addEventListener('click', () => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.multiple = true;
+            input.onchange = (e) => {
+                this.handleFiles(Array.from(e.target.files), area);
+            };
+            input.click();
+        });
+    },
+    
+    // 处理文件
+    async handleFiles(files, area) {
+        const taskId = area.dataset.taskId;
+        const todoId = area.dataset.todoId;
+        
+        for (const file of files) {
+            await this.uploadFile(file, taskId, todoId);
+        }
+    },
+    
+    // 上传文件
+    async uploadFile(file, taskId = null, todoId = null) {
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        if (taskId) formData.append('task_id', taskId);
+        if (todoId) formData.append('todo_id', todoId);
+        
+        try {
+            const response = await fetch('/api/files/upload', {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (!response.ok) {
+                throw new Error('上传失败');
+            }
+            
+            const result = await response.json();
+            Utils.showToast(`文件 "${file.name}" 上传成功`, 'success');
+            
+            // 刷新文件列表
+            this.refreshFileList();
+            
+            return result;
+        } catch (error) {
+            console.error('文件上传失败:', error);
+            Utils.showToast(`文件 "${file.name}" 上传失败`, 'error');
+            throw error;
+        }
+    },
+    
+    // 刷新文件列表
+    async refreshFileList() {
+        try {
+            const response = await Utils.apiRequest('/files');
+            this.renderFileList(response.files);
+        } catch (error) {
+            console.error('刷新文件列表失败:', error);
+        }
+    },
+    
+    // 渲染文件列表
+    renderFileList(files) {
+        const container = document.getElementById('file-list');
+        if (!container) return;
+        
+        container.innerHTML = files.map(file => `
+            <div class="file-item d-flex align-items-center justify-content-between p-2 border rounded mb-2">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-${this.getFileIcon(file.category)} me-2"></i>
+                    <div>
+                        <div class="fw-bold">${file.filename}</div>
+                        <small class="text-muted">${this.formatFileSize(file.size)} • ${file.category}</small>
+                    </div>
+                </div>
+                <div>
+                    <button class="btn btn-sm btn-outline-primary me-1" onclick="FileManager.downloadFile('${file.id}')">
+                        <i class="bi bi-download"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="FileManager.deleteFile('${file.id}')">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    },
+    
+    // 获取文件图标
+    getFileIcon(category) {
+        const iconMap = {
+            'image': 'image',
+            'document': 'file-text',
+            'spreadsheet': 'file-spreadsheet',
+            'archive': 'file-zip',
+            'other': 'file'
+        };
+        return iconMap[category] || 'file';
+    },
+    
+    // 格式化文件大小
+    formatFileSize(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    },
+    
+    // 下载文件
+    async downloadFile(fileId) {
+        try {
+            const response = await fetch(`/api/files/${fileId}`);
+            if (!response.ok) throw new Error('下载失败');
+            
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = response.headers.get('Content-Disposition')?.split('filename=')[1] || 'download';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('文件下载失败:', error);
+            Utils.showToast('文件下载失败', 'error');
+        }
+    },
+    
+    // 删除文件
+    async deleteFile(fileId) {
+        if (!confirm('确定要删除这个文件吗？')) return;
+        
+        try {
+            await Utils.apiRequest(`/files/${fileId}`, { method: 'DELETE' });
+            Utils.showToast('文件删除成功', 'success');
+            this.refreshFileList();
+        } catch (error) {
+            console.error('文件删除失败:', error);
+            Utils.showToast('文件删除失败', 'error');
+        }
+    }
+};
+
+// 应用初始化
+document.addEventListener('DOMContentLoaded', async function() {
+    console.log('生活管家AI Agent - 应用启动');
+    
+    try {
+        // 初始化各个管理器
+        NotificationManager.init();
+        DragManager.init();
+        FileManager.init();
+        
+        // 请求通知权限
+        await NotificationManager.requestPermission();
+        
+        // 加载默认页面
+        PageManager.showSection('dashboard');
+        
+        console.log('应用初始化完成');
+    } catch (error) {
+        console.error('应用初始化失败:', error);
+        Utils.showToast('应用初始化失败', 'error');
     }
 }); 

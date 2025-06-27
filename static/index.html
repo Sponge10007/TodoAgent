@@ -628,6 +628,15 @@
                         <strong>浏览器通知说明：</strong>
                         <p class="mb-0">首次使用需要授权浏览器通知权限。请在弹出的权限请求中选择"允许"。</p>
                     </div>
+                    
+                    <div class="alert alert-info" id="emailTestSection" style="display: none;">
+                        <i class="bi bi-envelope-check"></i>
+                        <strong>邮件服务测试：</strong>
+                        <p class="mb-2">建议先测试邮件服务是否正常工作</p>
+                        <button type="button" class="btn btn-sm btn-outline-info" onclick="testEmailService()">
+                            <i class="bi bi-send"></i> 发送测试邮件
+                        </button>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>

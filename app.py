@@ -4,17 +4,22 @@
 FastAPI主应用 - 生活管家AI Agent Web版
 """
 
-from fastapi import FastAPI, Depends, HTTPException, status, Query
+from fastapi import FastAPI, Depends, HTTPException, status, Query, WebSocket, WebSocketDisconnect, UploadFile, File, BackgroundTasks
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.responses import HTMLResponse, FileResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from typing import List, Dict
+from typing import List, Dict, Optional
 import os
+import io
+import mimetypes
 
 from database import get_db, init_db
 from api_models import *
 from services import *
+from cache_service import cache_service, cached
+from file_service import file_service
+from notification_service import notification_service, connection_manager, NotificationType, NotificationPriority
 
 # 初始化FastAPI应用
 app = FastAPI(
@@ -370,6 +375,97 @@ async def get_notification_javascript(
         "reminder": reminder
     }
 
+@app.post("/api/email/test")
+async def test_email_service(
+    to_email: str = Query(..., description="测试邮箱地址")
+):
+    """测试邮件服务连接"""
+    try:
+        from email_service import email_service
+        
+        # 测试连接
+        if not email_service.test_connection():
+            raise HTTPException(status_code=500, detail="邮件服务连接失败")
+        
+        # 发送测试邮件
+        success = email_service.send_email(
+            to_email=to_email,
+            subject="🤖 生活管家AI - 邮件服务测试",
+            content="""
+            <h2>邮件服务测试成功！</h2>
+            <p>恭喜！您的邮件服务配置正确，可以正常发送邮件提醒。</p>
+            <p>现在您可以设置任务提醒，我们会在适当的时间发送邮件通知您。</p>
+            <hr>
+            <p><small>此邮件由生活管家AI自动发送</small></p>
+            """,
+            is_html=True
+        )
+        
+        if success:
+            return {
+                "success": True,
+                "message": "测试邮件发送成功！请检查您的邮箱。"
+            }
+        else:
+            raise HTTPException(status_code=500, detail="测试邮件发送失败")
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"邮件服务测试失败: {str(e)}")
+
+@app.post("/api/email/send-reminder")
+async def send_email_reminder(
+    to_email: str = Query(...),
+    reminder_type: str = Query(..., description="提醒类型: task_reminder, daily_start, daily_summary"),
+    task_title: str = Query(None),
+    task_time: str = Query(None),
+    duration: int = Query(None),
+    plan_title: str = Query(...),
+    goal: str = Query(None),
+    total_tasks: int = Query(None),
+    completed_tasks: int = Query(None)
+):
+    """手动发送邮件提醒"""
+    try:
+        from email_service import email_service
+        
+        success = False
+        
+        if reminder_type == "task_reminder":
+            success = email_service.send_task_reminder(
+                to_email=to_email,
+                task_title=task_title,
+                task_time=task_time,
+                duration=duration,
+                plan_title=plan_title
+            )
+        elif reminder_type == "daily_start":
+            success = email_service.send_daily_start_reminder(
+                to_email=to_email,
+                plan_title=plan_title,
+                goal=goal,
+                total_tasks=total_tasks
+            )
+        elif reminder_type == "daily_summary":
+            success = email_service.send_daily_summary(
+                to_email=to_email,
+                plan_title=plan_title,
+                total_tasks=total_tasks,
+                completed_tasks=completed_tasks or 0
+            )
+        else:
+            raise HTTPException(status_code=400, detail="不支持的提醒类型")
+        
+        if success:
+            return {
+                "success": True,
+                "message": f"{reminder_type} 邮件发送成功！"
+            }
+        else:
+            raise HTTPException(status_code=500, detail="邮件发送失败")
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"发送邮件失败: {str(e)}")
+
 # 分析统计
 @app.get("/api/dashboard/{user_id}", response_model=DashboardData)
 async def get_dashboard(user_id: int, db: Session = Depends(get_db)):
@@ -396,6 +492,168 @@ async def plan_to_todos(plan_id: int, db: Session = Depends(get_db)):
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "message": "生活管家AI Agent运行正常"}
+
+# WebSocket连接 - 实时通知
+@app.websocket("/ws/{user_id}")
+async def websocket_endpoint(websocket: WebSocket, user_id: int):
+    """WebSocket连接端点"""
+    connection_id = await connection_manager.connect(websocket, user_id)
+    
+    try:
+        # 发送欢迎消息
+        await notification_service.send_system_message(
+            user_id=user_id,
+            title="🎉 连接成功",
+            message="实时通知已启用",
+            priority=NotificationPriority.LOW
+        )
+        
+        while True:
+            # 保持连接活跃
+            data = await websocket.receive_text()
+            
+            # 处理客户端消息
+            if data == "ping":
+                await websocket.send_text("pong")
+                
+    except WebSocketDisconnect:
+        connection_manager.disconnect(connection_id, user_id)
+    except Exception as e:
+        logger.error(f"WebSocket错误: {e}")
+        connection_manager.disconnect(connection_id, user_id)
+
+# 通知管理API
+@app.get("/api/notifications/{user_id}")
+async def get_notifications(
+    user_id: int,
+    unread_only: bool = Query(False),
+    limit: int = Query(50)
+):
+    """获取用户通知"""
+    notifications = notification_service.get_user_notifications(
+        user_id=user_id,
+        unread_only=unread_only,
+        limit=limit
+    )
+    return {"notifications": notifications}
+
+@app.put("/api/notifications/{notification_id}/read")
+async def mark_notification_read(notification_id: str, user_id: int = Query(...)):
+    """标记通知为已读"""
+    success = notification_service.mark_as_read(notification_id, user_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="通知不存在")
+    return SuccessResponse(message="通知已标记为已读")
+
+@app.put("/api/notifications/{user_id}/read-all")
+async def mark_all_notifications_read(user_id: int):
+    """标记所有通知为已读"""
+    count = notification_service.mark_all_as_read(user_id)
+    return {"message": f"已标记 {count} 条通知为已读"}
+
+@app.get("/api/notifications/{user_id}/stats")
+async def get_notification_stats(user_id: int):
+    """获取通知统计"""
+    stats = notification_service.get_notification_stats(user_id)
+    return stats
+
+# 文件管理API
+@app.post("/api/files/upload")
+async def upload_file(
+    file: UploadFile = File(...),
+    task_id: Optional[int] = Query(None),
+    todo_id: Optional[int] = Query(None),
+    user_id: int = Query(1),
+    background_tasks: BackgroundTasks = BackgroundTasks()
+):
+    """上传文件"""
+    try:
+        file_info = await file_service.save_file(file, task_id, todo_id)
+        
+        # 发送文件上传通知
+        background_tasks.add_task(
+            notification_service.send_file_uploaded,
+            user_id=user_id,
+            filename=file.filename,
+            file_id=file_info["id"]
+        )
+        
+        return file_info
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/files/{file_id}")
+async def download_file(file_id: str):
+    """下载文件"""
+    file_path = file_service.get_file_path(file_id)
+    if not file_path or not file_path.exists():
+        raise HTTPException(status_code=404, detail="文件不存在")
+    
+    # 获取文件信息
+    file_info = file_service.get_file_info(file_id)
+    
+    def iterfile():
+        with open(file_path, mode="rb") as file_like:
+            yield from file_like
+    
+    return StreamingResponse(
+        iterfile(),
+        media_type=file_info["mime_type"] or "application/octet-stream",
+        headers={"Content-Disposition": f"attachment; filename={file_path.name}"}
+    )
+
+@app.get("/api/files")
+async def list_files(
+    category: Optional[str] = Query(None),
+    task_id: Optional[int] = Query(None),
+    todo_id: Optional[int] = Query(None)
+):
+    """获取文件列表"""
+    files = file_service.list_files(category, task_id, todo_id)
+    return {"files": files}
+
+@app.delete("/api/files/{file_id}")
+async def delete_file(file_id: str):
+    """删除文件"""
+    success = file_service.delete_file(file_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="文件不存在")
+    return SuccessResponse(message="文件删除成功")
+
+@app.get("/api/files/stats")
+async def get_file_stats():
+    """获取文件存储统计"""
+    stats = file_service.get_storage_stats()
+    return stats
+
+# 缓存管理API
+@app.get("/api/cache/stats")
+async def get_cache_stats():
+    """获取缓存统计"""
+    stats = cache_service.get_stats()
+    return stats
+
+@app.delete("/api/cache/{pattern}")
+async def clear_cache(pattern: str):
+    """清除缓存"""
+    count = cache_service.clear_pattern(pattern)
+    return {"message": f"已清除 {count} 个缓存项"}
+
+# 使用缓存的API示例
+@app.get("/api/dashboard/{user_id}/cached", response_model=DashboardData)
+@cached(ttl=300, key_prefix="dashboard")  # 缓存5分钟
+async def get_dashboard_cached(user_id: int, db: Session = Depends(get_db)):
+    """获取仪表板数据（缓存版本）"""
+    dashboard_data = get_dashboard_service(db, user_id)
+    return DashboardData(**dashboard_data)
+
+@app.get("/api/plans/{user_id}/cached", response_model=List[PlanResponse])
+@cached(ttl=600, key_prefix="plans")  # 缓存10分钟
+async def get_plans_cached(user_id: int, skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
+    """获取用户计划列表（缓存版本）"""
+    plans = get_user_plans_service(db, user_id, skip, limit)
+    return plans
 
 if __name__ == "__main__":
     import uvicorn

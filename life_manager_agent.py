@@ -1541,7 +1541,8 @@ class ReminderSystem:
                     "priority": task.priority,
                     "type": "task_reminder",
                     "message": f"📝 即将开始：{task.description} ({task.duration}分钟)",
-                    "user_email": user_email
+                    "user_email": user_email,
+                    "plan_title": plan.plan_title
                 }
                 reminders.append(reminder)
         
@@ -1550,7 +1551,10 @@ class ReminderSystem:
             "type": "daily_start",
             "reminder_time": datetime.now().replace(hour=8, minute=0).isoformat(),
             "message": f"🌅 新的一天开始了！今天的目标：{plan.goal}",
-            "user_email": user_email
+            "user_email": user_email,
+            "plan_title": plan.plan_title,
+            "goal": plan.goal,
+            "total_tasks": plan.total_tasks
         }
         reminders.append(daily_start_reminder)
         
@@ -1559,15 +1563,65 @@ class ReminderSystem:
             "type": "daily_summary",
             "reminder_time": datetime.now().replace(hour=21, minute=0).isoformat(),
             "message": f"🌙 今天辛苦了！请回顾一下今天的完成情况",
-            "user_email": user_email
+            "user_email": user_email,
+            "plan_title": plan.plan_title,
+            "total_tasks": plan.total_tasks
         }
         reminders.append(daily_summary_reminder)
+        
+        # 如果提供了用户邮箱，立即发送邮件提醒
+        if user_email:
+            ReminderSystem.send_email_reminders(reminders)
         
         return {
             "plan_title": plan.plan_title,
             "total_reminders": len(reminders),
             "reminders": reminders
         }
+    
+    @staticmethod
+    def send_email_reminders(reminders: List[Dict[str, Any]]) -> None:
+        """发送邮件提醒"""
+        try:
+            from email_service import email_service
+            
+            for reminder in reminders:
+                user_email = reminder.get('user_email')
+                if not user_email:
+                    continue
+                
+                reminder_type = reminder.get('type')
+                
+                if reminder_type == 'task_reminder':
+                    # 发送任务提醒邮件
+                    email_service.send_task_reminder(
+                        to_email=user_email,
+                        task_title=reminder['task_title'],
+                        task_time=reminder['task_time'],
+                        duration=reminder['duration'],
+                        plan_title=reminder['plan_title']
+                    )
+                
+                elif reminder_type == 'daily_start':
+                    # 发送每日开始提醒邮件
+                    email_service.send_daily_start_reminder(
+                        to_email=user_email,
+                        plan_title=reminder['plan_title'],
+                        goal=reminder['goal'],
+                        total_tasks=reminder['total_tasks']
+                    )
+                
+                elif reminder_type == 'daily_summary':
+                    # 发送每日总结邮件（这里假设完成任务数为0，实际应该从数据库获取）
+                    email_service.send_daily_summary(
+                        to_email=user_email,
+                        plan_title=reminder['plan_title'],
+                        total_tasks=reminder['total_tasks'],
+                        completed_tasks=0  # 实际应该从数据库查询
+                    )
+                    
+        except Exception as e:
+            print(f"发送邮件提醒失败: {e}")
     
     @staticmethod
     def create_browser_notification_js(reminder: Dict[str, Any]) -> str:

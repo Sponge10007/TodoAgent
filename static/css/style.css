@@ -932,4 +932,250 @@ body {
     .card-footer .btn-group:last-child .btn:last-child {
         margin-bottom: 0;
     }
+}
+
+/* 拖拽功能样式 */
+.draggable {
+    cursor: move;
+    transition: all 0.3s ease;
+}
+
+.draggable:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.dragging {
+    opacity: 0.5;
+    transform: rotate(5deg);
+    z-index: 1000;
+}
+
+.drop-zone {
+    min-height: 50px;
+    border: 2px dashed transparent;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.drop-zone.drag-over {
+    border-color: #007bff;
+    background-color: rgba(0, 123, 255, 0.1);
+}
+
+.drop-zone.drag-over::before {
+    content: "放置到这里";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #007bff;
+    font-weight: bold;
+    pointer-events: none;
+}
+
+/* 文件上传区域样式 */
+.file-upload-area {
+    border: 2px dashed #dee2e6;
+    border-radius: 12px;
+    padding: 40px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    position: relative;
+    overflow: hidden;
+}
+
+.file-upload-area:hover {
+    border-color: #007bff;
+    background: linear-gradient(135deg, rgba(0, 123, 255, 0.05) 0%, rgba(0, 123, 255, 0.1) 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 123, 255, 0.15);
+}
+
+.file-upload-area.drag-over {
+    border-color: #28a745;
+    background: linear-gradient(135deg, rgba(40, 167, 69, 0.1) 0%, rgba(40, 167, 69, 0.2) 100%);
+    transform: scale(1.02);
+}
+
+.file-upload-area i {
+    font-size: 3rem;
+    color: #6c757d;
+    margin-bottom: 1rem;
+    transition: all 0.3s ease;
+}
+
+.file-upload-area:hover i {
+    color: #007bff;
+    transform: scale(1.1);
+}
+
+.file-upload-area.drag-over i {
+    color: #28a745;
+    animation: bounce 0.6s ease-in-out infinite alternate;
+}
+
+@keyframes bounce {
+    from { transform: scale(1.1); }
+    to { transform: scale(1.2); }
+}
+
+.file-upload-text {
+    font-size: 1.1rem;
+    color: #495057;
+    margin-bottom: 0.5rem;
+}
+
+.file-upload-hint {
+    font-size: 0.9rem;
+    color: #6c757d;
+}
+
+/* 文件列表样式 */
+.file-item {
+    background: white;
+    transition: all 0.3s ease;
+}
+
+.file-item:hover {
+    background: #f8f9fa;
+    transform: translateX(5px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.file-item .btn {
+    opacity: 0.7;
+    transition: opacity 0.3s ease;
+}
+
+.file-item:hover .btn {
+    opacity: 1;
+}
+
+/* 通知样式 */
+.notification-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    max-width: 400px;
+}
+
+.notification-item {
+    margin-bottom: 10px;
+    animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.notification-item .alert {
+    border-left: 4px solid;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.notification-item .alert-primary {
+    border-left-color: #007bff;
+}
+
+.notification-item .alert-success {
+    border-left-color: #28a745;
+}
+
+.notification-item .alert-warning {
+    border-left-color: #ffc107;
+}
+
+.notification-item .alert-danger {
+    border-left-color: #dc3545;
+}
+
+/* 连接状态指示器 */
+#connection-status {
+    padding: 5px 10px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+}
+
+/* 通知徽章 */
+#notification-badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: #dc3545;
+    color: white;
+    border-radius: 50%;
+    padding: 2px 6px;
+    font-size: 0.7rem;
+    min-width: 18px;
+    text-align: center;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+/* 响应式优化 */
+@media (max-width: 768px) {
+    .notification-container {
+        left: 10px;
+        right: 10px;
+        max-width: none;
+    }
+    
+    .file-upload-area {
+        padding: 20px 10px;
+    }
+    
+    .file-upload-area i {
+        font-size: 2rem;
+    }
+    
+    .draggable {
+        cursor: default;
+    }
+}
+
+/* 加载状态动画增强 */
+.loading-spinner {
+    animation: spin 1s linear infinite, pulse 2s ease-in-out infinite alternate;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* 拖拽排序提示 */
+.sortable-placeholder {
+    background: rgba(0, 123, 255, 0.1);
+    border: 2px dashed #007bff;
+    border-radius: 8px;
+    margin: 5px 0;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #007bff;
+    font-weight: bold;
+}
+
+.sortable-placeholder::before {
+    content: "拖拽到这里重新排序";
 } 
