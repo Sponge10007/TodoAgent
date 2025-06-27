@@ -9,6 +9,8 @@ class Task(BaseModel):
     reason: str = Field(description="为什么安排这个任务的简要理由")
     duration: int = Field(description="预计完成时间（分钟）", default=30)
     priority: str = Field(description="任务优先级：高/中/低", default="中")
+    subtasks: List["Task"] = Field(description="子任务列表", default=[])
+    ai_estimated_days: Optional[int] = Field(description="AI估计需要的天数", default=None)
 
 class DailyPlan(BaseModel):
     """每日计划模型"""
@@ -18,6 +20,18 @@ class DailyPlan(BaseModel):
     tasks: List[Task] = Field(description="包含全天所有任务的列表")
     total_tasks: int = Field(description="总任务数量")
     estimated_total_time: int = Field(description="预计总时间（分钟）")
+
+class CustomPlan(BaseModel):
+    """自定义天数计划模型"""
+    plan_title: str = Field(description="计划标题")
+    main_goal: str = Field(description="主要目标")
+    duration_days: int = Field(description="计划持续天数")
+    start_date: str = Field(description="开始日期")
+    end_date: str = Field(description="结束日期")
+    ai_suggested_days: Optional[int] = Field(description="AI建议天数", default=None)
+    user_preferred_days: Optional[int] = Field(description="用户偏好天数", default=None)
+    daily_plans: List[DailyPlan] = Field(description="每日计划列表")
+    estimated_total_time: int = Field(description="总预计时间（分钟）")
 
 class WeeklyPlan(BaseModel):
     """周计划模型"""

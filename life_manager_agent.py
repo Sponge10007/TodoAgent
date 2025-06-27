@@ -20,7 +20,7 @@ import requests
 from dotenv import load_dotenv
 import time
 
-from models import DailyPlan, Task, WeeklyPlan
+from models import DailyPlan, Task, WeeklyPlan, CustomPlan
 
 # 加载环境变量
 load_dotenv()
@@ -278,7 +278,21 @@ JSON格式示例：
                 return self._create_fallback_plan(goal_description)
             
             # 解析JSON
-            plan_data = json.loads(json_content)
+            try:
+                plan_data = json.loads(json_content)
+            except json.JSONDecodeError as e:
+                print(f"⚠️ 首次JSON解析失败: {e}")
+                print("🔧 尝试修复JSON格式...")
+                # 尝试修复JSON错误
+                fixed_json = self._fix_json_errors(json_content)
+                try:
+                    plan_data = json.loads(fixed_json)
+                    print("✅ JSON修复成功！")
+                except json.JSONDecodeError as e2:
+                    print(f"❌ JSON修复失败: {e2}")
+                    print("🔄 使用备用计划...")
+                    return self._create_custom_fallback_plan(goal_description, duration_days, ai_estimated_days, user_preferred_days)
+            
             plan = DailyPlan(**plan_data)
             print("✅ 计划制定完成！")
             
@@ -325,7 +339,9 @@ JSON格式示例：
     def _fix_json_errors(self, json_str: str) -> str:
         """修复常见的JSON错误"""
         try:
-            # 移除可能的多余逗号
+            import re
+            
+            # 1. 移除多余的逗号（末尾逗号）
             lines = json_str.split('\n')
             fixed_lines = []
             
@@ -337,8 +353,24 @@ JSON格式示例：
                         line = line.rstrip().rstrip(',')
                 fixed_lines.append(line)
             
-            return '\n'.join(fixed_lines)
-        except:
+            fixed_json = '\n'.join(fixed_lines)
+            
+            # 2. 修复缺少逗号的问题（两个相邻的字符串/对象/数组之间）
+            # 在 } 或 ] 后面跟 " 或 { 或 [ 的情况下添加逗号
+            fixed_json = re.sub(r'([}\]])\s*(["{[])', r'\1,\2', fixed_json)
+            
+            # 在 " 后面跟 " 或 { 或 [ 的情况下添加逗号（但不在值内部）
+            fixed_json = re.sub(r'"\s*(["{[])', r'",\1', fixed_json)
+            
+            # 3. 修复数字后面缺少逗号的问题
+            fixed_json = re.sub(r'(\d)\s*(["{[])', r'\1,\2', fixed_json)
+            
+            # 4. 修复布尔值/null后面缺少逗号的问题
+            fixed_json = re.sub(r'(true|false|null)\s*(["{[])', r'\1,\2', fixed_json)
+            
+            return fixed_json
+        except Exception as e:
+            print(f"⚠️ JSON修复失败: {e}")
             return json_str
     
     def _create_fallback_plan(self, goal_description: str) -> DailyPlan:
@@ -778,7 +810,20 @@ JSON格式示例：
                 return self._create_weekly_fallback_plan(goal_description)
             
             # 解析JSON
-            plan_data = json.loads(json_content)
+            try:
+                plan_data = json.loads(json_content)
+            except json.JSONDecodeError as e:
+                print(f"⚠️ 首次JSON解析失败: {e}")
+                print("🔧 尝试修复JSON格式...")
+                # 尝试修复JSON错误
+                fixed_json = self._fix_json_errors(json_content)
+                try:
+                    plan_data = json.loads(fixed_json)
+                    print("✅ JSON修复成功！")
+                except json.JSONDecodeError as e2:
+                    print(f"❌ JSON修复失败: {e2}")
+                    print("🔄 使用备用7天计划...")
+                    return self._create_weekly_fallback_plan(goal_description)
             
             # 验证daily_plans格式
             if 'daily_plans' in plan_data:
@@ -1108,6 +1153,290 @@ JSON格式示例：
         except Exception as e:
             print(f"保存7天计划时出错: {e}")
 
+    def create_custom_plan(self, goal_description: str, duration_days: int, user_preferred_days: int = None, time_preference: str = "") -> Optional[CustomPlan]:
+        """创建自定义天数计划"""
+        if not self.api_key:
+            print("❌ 缺少API密钥")
+            return None
+        
+        print(f"🤖 正在制定{duration_days}天计划...")
+        
+        # AI估计天数
+        ai_estimated_days = self._estimate_required_days(goal_description)
+        
+        # 获取用户上下文
+        user_context = self.memory_system.get_user_context()
+        
+        # 计算日期范围
+        start_date = datetime.now()
+        end_date = start_date + timedelta(days=duration_days-1)
+        
+        prompt = f"""
+请根据以下信息制定一个详细的{duration_days}天计划，以JSON格式输出：
+
+目标: {goal_description}
+持续天数: {duration_days}天
+用户偏好天数: {user_preferred_days or '未指定'}天
+AI建议天数: {ai_estimated_days}天
+时间偏好: {time_preference if time_preference else "无特殊偏好"}
+开始日期: {start_date.strftime('%Y-%m-%d')}
+结束日期: {end_date.strftime('%Y-%m-%d')}
+
+用户历史上下文:
+{user_context}
+
+要求：
+1. 制定连续{duration_days}天的计划，每天2-4个核心任务
+2. 任务要循序渐进，符合学习/实践规律
+3. 考虑工作日和周末的不同安排
+4. 每个任务可以包含子任务
+5. 合理分配任务难度和时间
+6. 确保输出标准JSON格式
+
+JSON格式示例：
+{{
+  "plan_title": "AI Agent项目{duration_days}天实践计划",
+  "main_goal": "{goal_description}",
+  "duration_days": {duration_days},
+  "start_date": "{start_date.strftime('%Y-%m-%d')}",
+  "end_date": "{end_date.strftime('%Y-%m-%d')}",
+  "ai_suggested_days": {ai_estimated_days},
+  "user_preferred_days": {user_preferred_days},
+  "estimated_total_time": 1800,
+  "daily_plans": [
+    {{
+      "plan_title": "第1天：基础准备",
+      "goal": "搭建基础环境和学习核心概念",
+      "date": "{start_date.strftime('%Y-%m-%d')}",
+      "total_tasks": 3,
+      "estimated_total_time": 240,
+      "tasks": [
+        {{
+          "time": "09:00",
+          "description": "环境搭建和工具准备",
+          "duration": 90,
+          "priority": "高",
+          "reason": "良好的开发环境是项目成功的基础",
+          "subtasks": [
+            {{
+              "time": "09:00",
+              "description": "安装必要软件",
+              "duration": 30,
+              "priority": "高",
+              "reason": "基础工具安装"
+            }},
+            {{
+              "time": "09:30",
+              "description": "配置开发环境",
+              "duration": 60,
+              "priority": "高", 
+              "reason": "环境配置优化"
+            }}
+          ]
+        }}
+      ]
+    }}
+  ]
+}}
+
+请生成完整的{duration_days}天计划：
+"""
+        
+        try:
+            response = self._call_qwen_with_retry(prompt, timeout=60)
+            if not response:
+                return self._create_custom_fallback_plan(goal_description, duration_days, ai_estimated_days, user_preferred_days)
+            
+            # 记录对话
+            self.memory_system.add_conversation(f"{duration_days}天计划: {goal_description}", response[:100] + "...")
+            
+            # 提取JSON部分
+            json_content = self._extract_json_from_response(response)
+            
+            # 检查响应长度
+            if len(json_content) > 25000:
+                print("⚠️ AI响应过长，使用备用计划")
+                return self._create_custom_fallback_plan(goal_description, duration_days, ai_estimated_days, user_preferred_days)
+            
+            # 解析JSON
+            try:
+                plan_data = json.loads(json_content)
+            except json.JSONDecodeError as e:
+                print(f"⚠️ 首次JSON解析失败: {e}")
+                print("🔧 尝试修复JSON格式...")
+                # 尝试修复JSON错误
+                fixed_json = self._fix_json_errors(json_content)
+                try:
+                    plan_data = json.loads(fixed_json)
+                    print("✅ JSON修复成功！")
+                except json.JSONDecodeError as e2:
+                    print(f"❌ JSON修复失败: {e2}")
+                    print("🔄 使用备用计划...")
+                    return self._create_custom_fallback_plan(goal_description, duration_days, ai_estimated_days, user_preferred_days)
+            
+            # 补充缺失字段
+            plan_data["duration_days"] = duration_days
+            plan_data["ai_suggested_days"] = ai_estimated_days
+            plan_data["user_preferred_days"] = user_preferred_days
+            
+            # 验证daily_plans格式
+            if 'daily_plans' in plan_data:
+                for daily_plan_data in plan_data['daily_plans']:
+                    # 确保每个daily_plan都有必需的字段
+                    if 'tasks' not in daily_plan_data:
+                        daily_plan_data['tasks'] = []
+                    if 'total_tasks' not in daily_plan_data:
+                        daily_plan_data['total_tasks'] = len(daily_plan_data['tasks'])
+                    if 'estimated_total_time' not in daily_plan_data:
+                        daily_plan_data['estimated_total_time'] = sum(task.get('duration', 60) for task in daily_plan_data['tasks'])
+                    
+                    # 处理任务子任务
+                    for task in daily_plan_data['tasks']:
+                        if 'subtasks' not in task:
+                            task['subtasks'] = []
+                        if 'ai_estimated_days' not in task:
+                            task['ai_estimated_days'] = None
+            
+            custom_plan = CustomPlan(**plan_data)
+            print(f"✅ {duration_days}天计划制定完成！")
+            
+            # 更新工作记忆
+            self.memory_system.working_memory["current_custom_plan"] = custom_plan
+            
+            return custom_plan
+            
+        except json.JSONDecodeError as e:
+            print(f"❌ JSON解析失败: {e}")
+            print("🔄 使用备用计划...")
+            return self._create_custom_fallback_plan(goal_description, duration_days, ai_estimated_days, user_preferred_days)
+        except Exception as e:
+            print(f"❌ 创建{duration_days}天计划失败: {e}")
+            return self._create_custom_fallback_plan(goal_description, duration_days, ai_estimated_days, user_preferred_days)
+
+    def _estimate_required_days(self, goal_description: str) -> int:
+        """AI估计完成目标所需的天数"""
+        goal_lower = goal_description.lower()
+        
+        # 基于目标复杂度估算天数
+        if any(keyword in goal_lower for keyword in ["学习", "入门", "基础"]):
+            return 7  # 学习类目标通常需要一周
+        elif any(keyword in goal_lower for keyword in ["项目", "开发", "编程", "系统"]):
+            return 14  # 项目开发类需要两周
+        elif any(keyword in goal_lower for keyword in ["掌握", "精通", "高级"]):
+            return 21  # 深度学习需要三周
+        elif any(keyword in goal_lower for keyword in ["习惯", "锻炼", "健身"]):
+            return 30  # 习惯养成需要一个月
+        else:
+            return 10  # 默认10天
+
+    def _create_custom_fallback_plan(self, goal_description: str, duration_days: int, ai_suggested_days: int, user_preferred_days: int) -> CustomPlan:
+        """创建自定义天数备用计划"""
+        print(f"🔄 生成智能备用{duration_days}天计划...")
+        
+        start_date = datetime.now()
+        end_date = start_date + timedelta(days=duration_days-1)
+        
+        # 生成每日计划
+        daily_plans = []
+        for day in range(duration_days):
+            current_date = start_date + timedelta(days=day)
+            is_weekend = current_date.weekday() >= 5
+            
+            # 根据阶段调整任务类型
+            if day < duration_days * 0.3:  # 前30%：基础阶段
+                stage = "基础准备"
+                task_focus = "环境搭建和概念学习"
+            elif day < duration_days * 0.7:  # 中间40%：实践阶段
+                stage = "实践开发"
+                task_focus = "核心功能实现"
+            else:  # 后30%：完善阶段
+                stage = "优化完善"
+                task_focus = "测试和优化"
+            
+            # 周末任务相对轻松
+            task_count = 2 if is_weekend else 3
+            time_per_task = 60 if is_weekend else 90
+            
+            tasks = []
+            for i in range(task_count):
+                start_time = f"{9 + i * 3}:00"
+                task = Task(
+                    time=start_time,
+                    description=f"{stage}：{task_focus}相关任务{i+1}",
+                    duration=time_per_task,
+                    priority="高" if i == 0 else "中",
+                    reason=f"第{day+1}天的核心任务，专注于{task_focus}",
+                    subtasks=[
+                        Task(
+                            time=start_time,
+                            description=f"子任务：具体执行步骤{j+1}",
+                            duration=time_per_task // 2,
+                            priority="中",
+                            reason=f"分解{task_focus}的具体执行步骤"
+                        ) for j in range(2)
+                    ]
+                )
+                tasks.append(task)
+            
+            daily_plan = DailyPlan(
+                plan_title=f"第{day+1}天：{stage}",
+                goal=f"专注于{task_focus}",
+                date=current_date.strftime('%Y-%m-%d'),
+                total_tasks=len(tasks),
+                estimated_total_time=sum(task.duration for task in tasks),
+                tasks=tasks
+            )
+            daily_plans.append(daily_plan)
+        
+        return CustomPlan(
+            plan_title=f"{goal_description} - {duration_days}天实践计划",
+            main_goal=goal_description,
+            duration_days=duration_days,
+            start_date=start_date.strftime('%Y-%m-%d'),
+            end_date=end_date.strftime('%Y-%m-%d'),
+            ai_suggested_days=ai_suggested_days,
+            user_preferred_days=user_preferred_days,
+            daily_plans=daily_plans,
+            estimated_total_time=sum(plan.estimated_total_time for plan in daily_plans)
+        )
+
+    def display_custom_plan(self, custom_plan: CustomPlan):
+        """显示自定义天数计划"""
+        print("\n" + "="*60)
+        print(f"📋 {custom_plan.plan_title}")
+        print("="*60)
+        print(f"🎯 主要目标: {custom_plan.main_goal}")
+        print(f"📅 计划周期: {custom_plan.start_date} 至 {custom_plan.end_date} ({custom_plan.duration_days}天)")
+        print(f"🤖 AI建议天数: {custom_plan.ai_suggested_days}天")
+        print(f"👤 用户偏好天数: {custom_plan.user_preferred_days}天" if custom_plan.user_preferred_days else "👤 用户偏好: 未指定")
+        print(f"⏱️  预计总时间: {custom_plan.estimated_total_time}分钟 ({custom_plan.estimated_total_time//60}小时{custom_plan.estimated_total_time%60}分钟)")
+        print()
+        
+        for i, daily_plan in enumerate(custom_plan.daily_plans, 1):
+            print(f"📅 {daily_plan.plan_title} ({daily_plan.date})")
+            print(f"   目标: {daily_plan.goal}")
+            print(f"   任务数: {daily_plan.total_tasks} | 预计时间: {daily_plan.estimated_total_time}分钟")
+            
+            for j, task in enumerate(daily_plan.tasks, 1):
+                print(f"   {j}. [{task.priority}] {task.time} - {task.description} ({task.duration}分钟)")
+                print(f"      理由: {task.reason}")
+                
+                # 显示子任务
+                if task.subtasks:
+                    for k, subtask in enumerate(task.subtasks, 1):
+                        print(f"      子任务{k}: {subtask.description} ({subtask.duration}分钟)")
+            print()
+
+    def save_custom_plan(self, custom_plan: CustomPlan, filename: str = "custom_plan.json"):
+        """保存自定义天数计划到文件"""
+        try:
+            plan_dict = custom_plan.dict()
+            with open(filename, 'w', encoding='utf-8') as f:
+                json.dump(plan_dict, f, ensure_ascii=False, indent=2)
+            print(f"✅ 自定义计划已保存到 {filename}")
+        except Exception as e:
+            print(f"❌ 保存计划失败: {e}")
+
 def test_qwen_simple():
     """测试通义千问简单连接"""
     print("🧪 测试通义千问连接...")
@@ -1131,6 +1460,164 @@ def test_qwen_simple():
         print("❌ 通义千问连接失败")
         return False
 
-if __name__ == "__main__":
-    # 快速测试
-    test_qwen_simple() 
+# AI反问和提醒功能扩展
+class AIQuestioningSystem:
+    """AI反问系统"""
+    
+    @staticmethod
+    def generate_follow_up_questions(goal_description: str, plan_type: str = "daily") -> List[str]:
+        """生成针对用户目标的后续问题，帮助完善计划"""
+        
+        # 基础问题模板
+        base_questions = [
+            "您希望每天投入多少时间来实现这个目标？",
+            "您有哪些相关的基础知识或经验？",
+            "您希望在哪个时间段进行学习或实践？",
+            "您遇到困难时希望如何获得帮助？"
+        ]
+        
+        # 根据目标类型生成特定问题
+        goal_lower = goal_description.lower()
+        specific_questions = []
+        
+        if any(keyword in goal_lower for keyword in ["学习", "编程", "技术"]):
+            specific_questions = [
+                "您希望通过实际项目来学习，还是更偏向理论学习？",
+                "您有编程环境吗？需要帮助搭建开发环境吗？",
+                "您希望学到什么程度？（入门/进阶/项目实战）",
+                "您希望重点关注哪些技术领域？"
+            ]
+        elif any(keyword in goal_lower for keyword in ["健身", "锻炼", "运动"]):
+            specific_questions = [
+                "您目前的身体状况如何？有运动基础吗？",
+                "您希望在家锻炼还是去健身房？",
+                "您的主要目标是减重、增肌还是提高体能？",
+                "您每周可以安排几天进行锻炼？"
+            ]
+        elif any(keyword in goal_lower for keyword in ["工作", "职业", "技能"]):
+            specific_questions = [
+                "这个技能对您当前工作有什么帮助？",
+                "您希望多久能在工作中应用这个技能？",
+                "您有相关的学习资源或预算吗？",
+                "您希望获得什么样的认证或证明？"
+            ]
+        elif any(keyword in goal_lower for keyword in ["语言", "英语", "外语"]):
+            specific_questions = [
+                "您目前的语言水平如何？",
+                "您希望重点提高听说读写中的哪一项？",
+                "您有语言学习的具体场景需求吗？（考试/工作/旅游）",
+                "您希望每天练习多长时间？"
+            ]
+        
+        # 合并问题并随机选择
+        all_questions = base_questions + specific_questions
+        import random
+        selected_questions = random.sample(all_questions, min(4, len(all_questions)))
+        
+        return selected_questions
+
+class ReminderSystem:
+    """提醒系统"""
+    
+    @staticmethod
+    def create_reminder_schedule(plan: DailyPlan, user_email: str = None) -> Dict[str, Any]:
+        """为计划创建提醒时间表"""
+        reminders = []
+        
+        for task in plan.tasks:
+            if task.time:
+                # 解析任务时间
+                hour, minute = map(int, task.time.split(':'))
+                
+                # 创建提醒时间（任务开始前15分钟）
+                reminder_time = datetime.now().replace(hour=hour, minute=minute) - timedelta(minutes=15)
+                
+                reminder = {
+                    "task_id": getattr(task, 'id', None),
+                    "task_title": task.description,
+                    "reminder_time": reminder_time.isoformat(),
+                    "task_time": task.time,
+                    "duration": task.duration,
+                    "priority": task.priority,
+                    "type": "task_reminder",
+                    "message": f"📝 即将开始：{task.description} ({task.duration}分钟)",
+                    "user_email": user_email
+                }
+                reminders.append(reminder)
+        
+        # 添加每日计划开始提醒
+        daily_start_reminder = {
+            "type": "daily_start",
+            "reminder_time": datetime.now().replace(hour=8, minute=0).isoformat(),
+            "message": f"🌅 新的一天开始了！今天的目标：{plan.goal}",
+            "user_email": user_email
+        }
+        reminders.append(daily_start_reminder)
+        
+        # 添加每日总结提醒
+        daily_summary_reminder = {
+            "type": "daily_summary",
+            "reminder_time": datetime.now().replace(hour=21, minute=0).isoformat(),
+            "message": f"🌙 今天辛苦了！请回顾一下今天的完成情况",
+            "user_email": user_email
+        }
+        reminders.append(daily_summary_reminder)
+        
+        return {
+            "plan_title": plan.plan_title,
+            "total_reminders": len(reminders),
+            "reminders": reminders
+        }
+    
+    @staticmethod
+    def create_browser_notification_js(reminder: Dict[str, Any]) -> str:
+        """创建浏览器通知的JavaScript代码"""
+        js_code = f"""
+        // 浏览器通知功能
+        function showTaskReminder() {{
+            if (Notification.permission === 'granted') {{
+                const notification = new Notification('🤖 生活管家AI提醒', {{
+                    body: '{reminder["message"]}',
+                    icon: '/static/images/logo.png',
+                    badge: '/static/images/badge.png',
+                    tag: 'task-reminder',
+                    requireInteraction: true,
+                    actions: [
+                        {{
+                            action: 'start',
+                            title: '开始任务'
+                        }},
+                        {{
+                            action: 'snooze',
+                            title: '稍后提醒'
+                        }}
+                    ]
+                }});
+                
+                notification.onclick = function() {{
+                    window.focus();
+                    notification.close();
+                }};
+                
+                // 5秒后自动关闭
+                setTimeout(() => notification.close(), 5000);
+            }}
+        }}
+        
+        // 请求通知权限
+        if (Notification.permission === 'default') {{
+            Notification.requestPermission().then(permission => {{
+                if (permission === 'granted') {{
+                    showTaskReminder();
+                }}
+            }});
+        }} else if (Notification.permission === 'granted') {{
+            showTaskReminder();
+        }}
+        """
+        return js_code
+
+# 扩展主类以包含新功能
+LifeManagerAgentQwen.generate_follow_up_questions = AIQuestioningSystem.generate_follow_up_questions
+LifeManagerAgentQwen.create_reminder_schedule = ReminderSystem.create_reminder_schedule
+LifeManagerAgentQwen.create_browser_notification_js = ReminderSystem.create_browser_notification_js

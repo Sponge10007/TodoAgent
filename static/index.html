@@ -270,23 +270,52 @@
                         <div class="mb-3">
                             <label class="form-label">计划类型</label>
                             <div class="row">
-                                <div class="col-6">
-                                    <input type="radio" class="btn-check" name="planType" id="daily" value="daily" checked>
+                                <div class="col-4">
+                                    <input type="radio" class="btn-check" name="planType" id="daily" value="daily" checked onchange="toggleCustomDays()">
                                     <label class="btn btn-outline-primary w-100" for="daily">
                                         <i class="bi bi-calendar-day"></i> 每日计划
                                     </label>
                                 </div>
-                                <div class="col-6">
-                                    <input type="radio" class="btn-check" name="planType" id="weekly" value="weekly">
+                                <div class="col-4">
+                                    <input type="radio" class="btn-check" name="planType" id="weekly" value="weekly" onchange="toggleCustomDays()">
                                     <label class="btn btn-outline-primary w-100" for="weekly">
                                         <i class="bi bi-calendar-week"></i> 7天计划
                                     </label>
                                 </div>
+                                <div class="col-4">
+                                    <input type="radio" class="btn-check" name="planType" id="custom" value="custom" onchange="toggleCustomDays()">
+                                    <label class="btn btn-outline-primary w-100" for="custom">
+                                        <i class="bi bi-calendar-range"></i> 自定义天数
+                                    </label>
+                                </div>
                             </div>
                         </div>
+                        
+                        <!-- 自定义天数设置 -->
+                        <div id="customDaysSection" class="mb-3" style="display: none;">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label for="userPreferredDays" class="form-label">您希望的天数</label>
+                                    <input type="number" class="form-control" id="userPreferredDays" min="1" max="365" placeholder="例如：30">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">AI建议天数</label>
+                                    <div class="input-group">
+                                        <span class="form-control" id="aiSuggestedDays">点击估算获取</span>
+                                        <button type="button" class="btn btn-outline-secondary" onclick="estimateDays()">
+                                            <i class="bi bi-magic"></i> AI估算
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="aiSuggestionWarning" class="alert alert-warning mt-2" style="display: none;">
+                                <small id="aiSuggestionText"></small>
+                            </div>
+                        </div>
+                        
                         <div class="mb-3">
                             <label for="planGoal" class="form-label">目标描述 *</label>
-                            <textarea class="form-control" id="planGoal" rows="3" placeholder="请详细描述您的目标，例如：我想学习Python编程，掌握基础语法..." required></textarea>
+                            <textarea class="form-control" id="planGoal" rows="3" placeholder="请详细描述您的目标，例如：我想学习Python编程，掌握基础语法..." required onblur="autoEstimateDays()"></textarea>
                         </div>
                         <div class="mb-3">
                             <label for="timePreference" class="form-label">时间偏好（可选）</label>
@@ -352,6 +381,258 @@
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
                     <button type="button" class="btn btn-primary" onclick="createTodo()">
                         <i class="bi bi-plus-circle"></i> 添加
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 子任务管理模态框 -->
+    <div class="modal fade" id="subtaskModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-list-ul"></i> 子任务管理
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <h6 class="text-muted">主任务</h6>
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6 id="mainTaskTitle" class="card-title"></h6>
+                                <p id="mainTaskDescription" class="card-text text-muted"></p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 添加子任务表单 -->
+                    <div class="mb-3">
+                        <h6>添加子任务</h6>
+                        <form id="addSubtaskForm">
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <input type="text" class="form-control" id="subtaskTitle" placeholder="子任务标题" required>
+                                </div>
+                                <div class="col-md-4">
+                                    <button type="button" class="btn btn-primary w-100" onclick="addSubtask()">
+                                        <i class="bi bi-plus"></i> 添加
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="row mt-2">
+                                <div class="col-md-6">
+                                    <input type="number" class="form-control" id="subtaskDuration" placeholder="时长(分钟)" value="30" min="5" max="480">
+                                </div>
+                                <div class="col-md-6">
+                                    <select class="form-select" id="subtaskPriority">
+                                        <option value="高">高优先级</option>
+                                        <option value="中" selected>中优先级</option>
+                                        <option value="低">低优先级</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    <!-- 子任务列表 -->
+                    <div class="mb-3">
+                        <h6>子任务列表</h6>
+                        <div id="subtasksList" class="list-group">
+                            <!-- 子任务将在这里动态生成 -->
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 计划详情查看和编辑模态框 -->
+    <div class="modal fade" id="planDetailsModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-calendar-check"></i> 计划详情
+                    </h5>
+                    <div class="btn-group ms-auto me-3">
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="viewModeBtn" onclick="switchToViewMode()">
+                            <i class="bi bi-eye"></i> 查看模式
+                        </button>
+                        <button type="button" class="btn btn-outline-warning btn-sm" id="editModeBtn" onclick="switchToEditMode()">
+                            <i class="bi bi-pencil"></i> 编辑模式
+                        </button>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- 计划基本信息 -->
+                    <div class="mb-4">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div id="planTitleView" class="mb-3">
+                                    <h4 id="planTitleDisplay" class="text-primary"></h4>
+                                </div>
+                                <div id="planTitleEdit" class="mb-3" style="display: none;">
+                                    <label class="form-label">计划标题</label>
+                                    <input type="text" class="form-control" id="planTitleInput">
+                                </div>
+                                
+                                <div id="planGoalView" class="mb-3">
+                                    <h6 class="text-muted">目标描述</h6>
+                                    <p id="planGoalDisplay"></p>
+                                </div>
+                                <div id="planGoalEdit" class="mb-3" style="display: none;">
+                                    <label class="form-label">目标描述</label>
+                                    <textarea class="form-control" id="planGoalInput" rows="3"></textarea>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h6 class="card-title">计划信息</h6>
+                                        <p class="mb-1"><strong>类型:</strong> <span id="planTypeDisplay"></span></p>
+                                        <p class="mb-1"><strong>创建日期:</strong> <span id="planDateDisplay"></span></p>
+                                        <p class="mb-1"><strong>任务总数:</strong> <span id="planTaskCountDisplay"></span></p>
+                                        <div id="planDurationInfo" style="display: none;">
+                                            <p class="mb-1"><strong>计划天数:</strong> <span id="planDurationDisplay"></span></p>
+                                            <p class="mb-1"><strong>AI建议:</strong> <span id="planAiSuggestedDisplay"></span>天</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 任务列表 -->
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5><i class="bi bi-list-task"></i> 任务列表</h5>
+                            <div id="editModeActions" style="display: none;">
+                                <button type="button" class="btn btn-success btn-sm me-2" onclick="addNewTask()">
+                                    <i class="bi bi-plus"></i> 新增任务
+                                </button>
+                                <button type="button" class="btn btn-primary btn-sm" onclick="savePlanChanges()">
+                                    <i class="bi bi-save"></i> 保存更改
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div id="tasksContainer">
+                            <!-- 任务列表将在这里动态生成 -->
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                    <button type="button" class="btn btn-danger" id="deletePlanBtn" onclick="deletePlan()">
+                        <i class="bi bi-trash"></i> 删除计划
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI反问模态框 -->
+    <div class="modal fade" id="aiQuestionModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-robot"></i> AI智能问答 - 完善您的计划
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-lightbulb"></i> 
+                        <strong>为了制定更精准的计划，AI想了解一些细节信息</strong>
+                        <p class="mb-0 mt-2">请回答以下问题，这将帮助我们为您定制最适合的学习计划。您可以跳过任何不想回答的问题。</p>
+                    </div>
+                    
+                    <div id="questionsContainer">
+                        <!-- 问题将在这里动态生成 -->
+                    </div>
+                    
+                    <div class="mt-4">
+                        <div class="progress" style="height: 10px;">
+                            <div class="progress-bar" role="progressbar" id="questionProgress" style="width: 0%"></div>
+                        </div>
+                        <small class="text-muted">回答进度: <span id="progressText">0/0</span></small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">跳过问答</button>
+                    <button type="button" class="btn btn-primary" onclick="submitAIAnswers()">
+                        <i class="bi bi-magic"></i> 生成增强计划
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 提醒设置模态框 -->
+    <div class="modal fade" id="reminderModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-bell"></i> 设置提醒
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <h6>选择提醒方式</h6>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="browserNotification" checked>
+                            <label class="form-check-label" for="browserNotification">
+                                <i class="bi bi-browser-chrome"></i> 浏览器通知
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="emailReminder">
+                            <label class="form-check-label" for="emailReminder">
+                                <i class="bi bi-envelope"></i> 邮件提醒
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3" id="emailSection" style="display: none;">
+                        <label for="userEmail" class="form-label">邮箱地址</label>
+                        <input type="email" class="form-control" id="userEmail" placeholder="请输入您的邮箱">
+                        <div class="form-text">我们将在任务开始前15分钟发送提醒邮件</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h6>提醒时间设置</h6>
+                        <div class="row">
+                            <div class="col-6">
+                                <label class="form-label">每日开始提醒</label>
+                                <input type="time" class="form-control" id="dailyStartTime" value="08:00">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label">每日总结提醒</label>
+                                <input type="time" class="form-control" id="dailySummaryTime" value="21:00">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-warning">
+                        <i class="bi bi-info-circle"></i>
+                        <strong>浏览器通知说明：</strong>
+                        <p class="mb-0">首次使用需要授权浏览器通知权限。请在弹出的权限请求中选择"允许"。</p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="setupReminders()">
+                        <i class="bi bi-check"></i> 设置提醒
                     </button>
                 </div>
             </div>

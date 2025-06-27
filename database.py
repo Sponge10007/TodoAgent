@@ -11,6 +11,7 @@ from sqlalchemy.sql import func
 import os
 import urllib.parse
 from datetime import datetime
+from sqlalchemy import text
 
 # 数据库配置
 def get_database_url():
@@ -91,11 +92,14 @@ class Plan(Base):
     title = Column(String(200), nullable=False)
     description = Column(Text, nullable=True)
     goal = Column(Text, nullable=False)
-    plan_type = Column(String(20), nullable=False)  # 'daily', 'weekly'
+    plan_type = Column(String(20), nullable=False)  # 'daily', 'weekly', 'custom'
+    duration_days = Column(Integer, default=1)  # 计划持续天数
     start_date = Column(DateTime, nullable=False)
     end_date = Column(DateTime, nullable=True)
     status = Column(String(20), default="active")  # 'active', 'completed', 'paused'
     estimated_total_time = Column(Integer, default=0)  # 分钟
+    ai_suggested_days = Column(Integer, nullable=True)  # AI建议的天数
+    user_preferred_days = Column(Integer, nullable=True)  # 用户偏好的天数
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
@@ -109,6 +113,7 @@ class Task(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     plan_id = Column(Integer, ForeignKey("plans.id"), nullable=False)
+    parent_task_id = Column(Integer, ForeignKey("tasks.id"), nullable=True)  # 父任务ID，支持子任务
     title = Column(String(200), nullable=False)
     description = Column(Text, nullable=True)
     reason = Column(Text, nullable=True)
@@ -119,11 +124,16 @@ class Task(Base):
     completion_rate = Column(Float, default=0.0)  # 0.0-1.0
     scheduled_date = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
+    ai_estimated_days = Column(Integer, nullable=True)  # AI估计需要的天数
+    user_preferred_days = Column(Integer, nullable=True)  # 用户希望的天数
+    is_subtask = Column(Boolean, default=False)  # 是否为子任务
+    order_index = Column(Integer, default=0)  # 排序索引
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # 关系
     plan = relationship("Plan", back_populates="tasks")
+    parent_task = relationship("Task", remote_side=[id], backref="subtasks")
 
 class TodoItem(Base):
     """TodoList项目模型"""
@@ -191,5 +201,114 @@ def init_db():
     create_tables()
     print("✅ 数据库初始化完成")
 
+def migrate_database():
+    """迁移数据库到新版本（添加子任务和多天计划支持）"""
+    
+    try:
+        # 检查数据库类型
+        if "sqlite" in DATABASE_URL:
+            # SQLite 迁移
+            with engine.connect() as conn:
+                # 添加新字段到 plans 表
+                try:
+                    conn.execute(text("ALTER TABLE plans ADD COLUMN duration_days INTEGER DEFAULT 1"))
+                    print("✅ 添加 plans.duration_days 字段")
+                except Exception as e:
+                    if "duplicate column name" not in str(e).lower():
+                        print(f"⚠️ 添加 plans.duration_days 失败: {e}")
+                
+                try:
+                    conn.execute(text("ALTER TABLE plans ADD COLUMN ai_suggested_days INTEGER"))
+                    print("✅ 添加 plans.ai_suggested_days 字段")
+                except Exception as e:
+                    if "duplicate column name" not in str(e).lower():
+                        print(f"⚠️ 添加 plans.ai_suggested_days 失败: {e}")
+                
+                try:
+                    conn.execute(text("ALTER TABLE plans ADD COLUMN user_preferred_days INTEGER"))
+                    print("✅ 添加 plans.user_preferred_days 字段")
+                except Exception as e:
+                    if "duplicate column name" not in str(e).lower():
+                        print(f"⚠️ 添加 plans.user_preferred_days 失败: {e}")
+                
+                # 添加新字段到 tasks 表
+                try:
+                    conn.execute(text("ALTER TABLE tasks ADD COLUMN parent_task_id INTEGER"))
+                    print("✅ 添加 tasks.parent_task_id 字段")
+                except Exception as e:
+                    if "duplicate column name" not in str(e).lower():
+                        print(f"⚠️ 添加 tasks.parent_task_id 失败: {e}")
+                
+                try:
+                    conn.execute(text("ALTER TABLE tasks ADD COLUMN ai_estimated_days INTEGER"))
+                    print("✅ 添加 tasks.ai_estimated_days 字段")
+                except Exception as e:
+                    if "duplicate column name" not in str(e).lower():
+                        print(f"⚠️ 添加 tasks.ai_estimated_days 失败: {e}")
+                
+                try:
+                    conn.execute(text("ALTER TABLE tasks ADD COLUMN user_preferred_days INTEGER"))
+                    print("✅ 添加 tasks.user_preferred_days 字段")
+                except Exception as e:
+                    if "duplicate column name" not in str(e).lower():
+                        print(f"⚠️ 添加 tasks.user_preferred_days 失败: {e}")
+                
+                try:
+                    conn.execute(text("ALTER TABLE tasks ADD COLUMN is_subtask BOOLEAN DEFAULT 0"))
+                    print("✅ 添加 tasks.is_subtask 字段")
+                except Exception as e:
+                    if "duplicate column name" not in str(e).lower():
+                        print(f"⚠️ 添加 tasks.is_subtask 失败: {e}")
+                
+                try:
+                    conn.execute(text("ALTER TABLE tasks ADD COLUMN order_index INTEGER DEFAULT 0"))
+                    print("✅ 添加 tasks.order_index 字段")
+                except Exception as e:
+                    if "duplicate column name" not in str(e).lower():
+                        print(f"⚠️ 添加 tasks.order_index 失败: {e}")
+                
+                conn.commit()
+        
+        elif "mssql" in DATABASE_URL:
+            # SQL Server 迁移
+            with engine.connect() as conn:
+                # Plans 表迁移
+                migration_sqls = [
+                    "IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('plans') AND name = 'duration_days') ALTER TABLE plans ADD duration_days INTEGER DEFAULT 1",
+                    "IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('plans') AND name = 'ai_suggested_days') ALTER TABLE plans ADD ai_suggested_days INTEGER",
+                    "IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('plans') AND name = 'user_preferred_days') ALTER TABLE plans ADD user_preferred_days INTEGER",
+                    
+                    # Tasks 表迁移
+                    "IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('tasks') AND name = 'parent_task_id') ALTER TABLE tasks ADD parent_task_id INTEGER",
+                    "IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('tasks') AND name = 'ai_estimated_days') ALTER TABLE tasks ADD ai_estimated_days INTEGER",
+                    "IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('tasks') AND name = 'user_preferred_days') ALTER TABLE tasks ADD user_preferred_days INTEGER",
+                    "IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('tasks') AND name = 'is_subtask') ALTER TABLE tasks ADD is_subtask BIT DEFAULT 0",
+                    "IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('tasks') AND name = 'order_index') ALTER TABLE tasks ADD order_index INTEGER DEFAULT 0"
+                ]
+                
+                for sql in migration_sqls:
+                    try:
+                        conn.execute(text(sql))
+                        print(f"✅ 执行SQL: {sql[:50]}...")
+                    except Exception as e:
+                        print(f"⚠️ SQL执行失败: {e}")
+                
+                conn.commit()
+        
+        print("✅ 数据库迁移完成")
+        
+    except Exception as e:
+        print(f"❌ 数据库迁移失败: {e}")
+
 if __name__ == "__main__":
-    init_db() 
+    print("选择操作:")
+    print("1. 初始化数据库")
+    print("2. 迁移数据库")
+    choice = input("请输入选择 (1/2): ")
+    
+    if choice == "1":
+        init_db()
+    elif choice == "2":
+        migrate_database()
+    else:
+        print("无效选择") 
